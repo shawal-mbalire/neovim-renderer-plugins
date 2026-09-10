@@ -1,0 +1,9 @@
+{
+  "name": "neovim-renderer-typescript",
+  "version": "0.1.0",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "prettier": "^3.0.0"
+  }
+}

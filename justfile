@@ -44,27 +44,24 @@ test-image:
 test-filetype:
     nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile lua/tests/e2e/filetype_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
 
-# Build and lint
-build:
-    cd typescript && bun run build 2>/dev/null || echo "No build script"
+test-discovery:
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile lua/tests/e2e/plugin_discovery_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
 
-clean:
-    rm -rf node_modules/ bun.lockb
+# Format code
+format:
+    @echo "Formatting Lua..."
+    @cd lua && stylua . --column-width 100 --indent-width 2 --quote-style AutoPreferDouble 2>/dev/null || echo "  stylua not found, skipping"
+    @echo "Formatting TypeScript..."
+    @cd typescript && bunx prettier --write "**/*.ts" 2>/dev/null || echo "  prettier not found, skipping"
+    @echo "Done."
 
+# Lint code
 lint:
-    bun run --bun tsc --noEmit 2>/dev/null || echo "TypeScript check complete"
+    @echo "Linting TypeScript..."
+    @cd typescript && bun install --frozen-lockfile 2>/dev/null && bunx tsc --noEmit 2>/dev/null && echo "  TypeScript: OK" || echo "  TypeScript: errors found"
+    @echo "Done."
 
-# Neovim testing
-nvim-markdown:
-    nvim --cmd "set rtp+=." -c "lua require('renderer-markdown').setup({preview={auto_open=true}})" README.md
-
-nvim-ipynb:
-    nvim --cmd "set rtp+=." -c "lua require('renderer-ipynb').setup()" test.ipynb
-
-nvim-image:
-    nvim --cmd "set rtp+=." -c "lua require('renderer-image').setup()" test.png
-
-# Release
-release version:
-    git tag -a v{{version}} -m "Release v{{version}}"
-    git push origin v{{version}}
+# Clean build artifacts
+clean:
+    @cd typescript && rm -rf node_modules/ bun.lockb bun.lock dist/
+    @echo "Cleaned."
