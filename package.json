@@ -1,0 +1,19 @@
+{
+  "name": "neovim-renderer-plugins",
+  "version": "0.1.0",
+  "description": "Serverless Markdown, ipynb, and Image renderer plugins for Neovim using Bun",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --compile --outfile renderer",
+    "start": "bun run src/index.ts",
+    "test": "bun test",
+    "lint": "bun run --bun tsc --noEmit"
+  },
+  "keywords": ["neovim", "markdown", "ipynb", "image", "renderer", "kitty", "plugins"],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
