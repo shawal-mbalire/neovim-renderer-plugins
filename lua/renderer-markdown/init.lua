@@ -254,9 +254,9 @@ local function render_buffer(buffer)
 							virt_text = { { mark.virt_text, mark.hl or "Comment" } },
 							virt_text_pos = mark.virt_text_pos or "inline",
 						})
-					elseif mark.hl and mark.col_end and mark.col_start and mark.col_end > mark.col_start then
-						pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, mark.line, mark.col_start, {
-							end_col = mark.col_end,
+					elseif mark.hl and mark.end_col and mark.col and mark.end_col > mark.col then
+						pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, mark.line, mark.col, {
+							end_col = mark.end_col,
 							hl_group = mark.hl,
 						})
 					end
