@@ -11,7 +11,7 @@ default:
 
 # Run all tests
 test:
-    @echo "Running e2e tests..."
+    @echo "Running all tests..."
     just test-e2e
 
 # Run unit tests only
@@ -20,30 +20,37 @@ test-unit:
 
 # Run e2e tests with headless Neovim
 test-e2e:
-    @echo "Running markdown e2e tests..."
+    @echo "=== Running Plugin Tests ==="
     nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/markdown_test.lua" 2>&1
-    @echo "Running ipynb e2e tests..."
     nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/ipynb_test.lua" 2>&1
-    @echo "Running image e2e tests..."
     nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/image_test.lua" 2>&1
+    @echo ""
+    @echo "=== Running Rendering Tests ==="
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/markdown_render_test.lua" 2>&1
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/ipynb_render_test.lua" 2>&1
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/image_render_test.lua" 2>&1
+    @echo ""
+    @echo "=== Running File Type Detection Tests ==="
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/filetype_test.lua" 2>&1
 
-# Run full e2e test suite
-test-e2e-full:
-    bun test tests/e2e/
+# Run specific test suites
+test-markdown:
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/markdown_test.lua" 2>&1
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/markdown_render_test.lua" 2>&1
 
-# Watch tests
-test-watch:
-    bun test --watch
+test-ipynb:
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/ipynb_test.lua" 2>&1
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/ipynb_render_test.lua" 2>&1
 
-# Run specific e2e test
-test-e2e-markdown:
-    nvim --headless --cmd "set rtp+=." -c "luafile tests/e2e/markdown_test.lua"
+test-image:
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/image_test.lua" 2>&1
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/image_render_test.lua" 2>&1
 
-test-e2e-ipynb:
-    nvim --headless --cmd "set rtp+=." -c "luafile tests/e2e/ipynb_test.lua"
-
-test-e2e-image:
-    nvim --headless --cmd "set rtp+=." -c "luafile tests/e2e/image_test.lua"
+# Run only rendering tests
+test-render:
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/markdown_render_test.lua" 2>&1
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/ipynb_render_test.lua" 2>&1
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile tests/e2e/image_render_test.lua" 2>&1
 
 # ============================================================================
 # Build
@@ -75,7 +82,6 @@ lint:
 # Format code
 format:
     @echo "Formatting..."
-    # Add formatter when available
 
 # ============================================================================
 # Neovim Testing
@@ -96,10 +102,6 @@ nvim-ipynb:
 # Test image rendering
 nvim-image:
     nvim --cmd "set rtp+=." -c "lua require('renderer-image').setup()" test.png
-
-# Headless Neovim test (for CI)
-nvim-headless:
-    nvim --headless --cmd "set rtp+=." -c "lua require('renderer-markdown').setup()" -c "lua print('OK')" -c "qa!"
 
 # ============================================================================
 # Development Helpers
