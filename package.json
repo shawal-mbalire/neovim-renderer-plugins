@@ -9,6 +9,11 @@
     "build": "bun build src/index.ts --compile --outfile renderer",
     "start": "bun run src/index.ts",
     "test": "bun test",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/integration",
+    "test:e2e": "bun test tests/e2e",
+    "test:watch": "bun test --watch",
+    "test:coverage": "bun test --coverage",
     "lint": "bun run --bun tsc --noEmit"
   },
   "keywords": ["neovim", "markdown", "ipynb", "image", "renderer", "kitty", "plugins"],
