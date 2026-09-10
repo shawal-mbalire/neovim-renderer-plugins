@@ -25,6 +25,10 @@ test:
     echo ""
     echo "filetype:"
     nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile lua/tests/e2e/filetype_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
+
+    echo ""
+    echo "plugin discovery:"
+    nvim --headless -u NONE --cmd "set rtp+={{justfile_directory()}}" -c "luafile lua/tests/e2e/plugin_discovery_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
     echo ""
 
 # Individual test suites

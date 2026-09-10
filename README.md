@@ -1,45 +1,48 @@
 # Neovim Renderer Plugins
 
-Three serverless plugins for rendering Markdown, ipynb, and Images in Neovim with render timing and kernel selection.
+Three serverless plugins for rendering Markdown, ipynb, and Images in Neovim.
 
 ## Features
 
-- **Render timing** - Shows how long each render takes in milliseconds
-- **Kernel selection** - ipynb plugin auto-detects kernel with selection menu
-- **Built-in Neovim features** - Uses extmarks, splits, autocmds, vim.ui.select
+- **Markdown**: GitHub-flavored with side-by-side preview
+- **ipynb**: Jupyter notebook rendering with kernel selection
+- **Image**: Terminal image display (Kitty/IIP/Sixel)
+- **Render timing**: Shows how long each render takes
 
 ## Installation
 
 ### lazy.nvim
 
 ```lua
--- All three plugins
+-- All plugins
 {
   "shawal-mbalire/neovim-renderer-plugins",
-  ft = { "markdown", "ipynb", "png", "jpg" },
+  ft = { "markdown", "ipynb", "png", "jpg", "jpeg", "gif", "webp" },
   config = function()
-    require("renderer-markdown").setup({ show_render_time = true })
-    require("renderer-ipynb").setup({ auto_select_kernel = true })
-    require("renderer-image").setup({ show_render_time = true })
+    require("renderer-markdown").setup()
+    require("renderer-ipynb").setup()
+    require("renderer-image").setup()
   end,
 }
 
--- Or install separately
+-- Or install individually
 { "shawal-mbalire/neovim-renderer-plugins", ft = "markdown",
   config = function() require("renderer-markdown").setup() end }
 
 { "shawal-mbalire/neovim-renderer-plugins", ft = "ipynb",
   config = function() require("renderer-ipynb").setup() end }
 
-{ "shawal-mbalire/neovim-renderer-plugins", ft = { "png", "jpg" },
+{ "shawal-mbalire/neovim-renderer-plugins",
+  ft = { "png", "jpg", "jpeg", "gif", "webp" },
   config = function() require("renderer-image").setup() end }
 ```
 
-### plug.nvim
+### plug.vim
 
 ```vim
 Plug 'shawal-mbalire/neovim-renderer-plugins'
 
+" Then in init.lua:
 lua << EOF
 require("renderer-markdown").setup()
 require("renderer-ipynb").setup()
@@ -61,7 +64,7 @@ require("renderer-markdown").setup({
     auto_open = true,
   },
   debounce_ms = 100,
-  show_render_time = true,  -- Shows "[markdown] Rendered in X.XX ms"
+  show_render_time = true,
 })
 ```
 
@@ -70,10 +73,9 @@ require("renderer-markdown").setup({
 ```lua
 require("renderer-ipynb").setup({
   show_execution_count = true,
-  max_output_lines = 100,
   debounce_ms = 100,
   show_render_time = true,
-  auto_select_kernel = true,  -- Auto-detect kernel or show selection menu
+  auto_select_kernel = true,
 })
 ```
 
@@ -83,73 +85,40 @@ require("renderer-ipynb").setup({
 require("renderer-image").setup({
   max_width = 800,
   max_height = 600,
-  debounce_ms = 100,
   show_render_time = true,
 })
 ```
 
 ## Commands
 
-### Markdown
-- `:MarkdownPreview` - Open preview split
-- `:MarkdownPreviewClose` - Close preview
-- `:MarkdownPreviewToggle` - Toggle preview
+| Plugin | Command | Description |
+|--------|---------|-------------|
+| Markdown | `:MarkdownPreview` | Open preview split |
+| Markdown | `:MarkdownPreviewClose` | Close preview |
+| Markdown | `:MarkdownPreviewToggle` | Toggle preview |
+| ipynb | `:IpynbRender` | Re-render notebook |
+| ipynb | `:IpynbEdit` | Switch to edit mode |
+| ipynb | `:IpynbSelectKernel` | Select kernel |
+| ipynb | `:IpynbShowKernels` | List kernels |
+| Image | `:ImageShow` | Display image |
+| Image | `:ImageInfo` | Show terminal info |
 
-### ipynb
-- `:IpynbRender` - Re-render notebook
-- `:IpynbEdit` - Switch to edit mode
-- `:IpynbSelectKernel` - Select kernel manually
-- `:IpynbShowKernels` - List available kernels
+## Requirements
 
-### Image
-- `:ImageShow` - Display image
-- `:ImageInfo` - Show terminal capabilities
-
-## Kernel Selection
-
-The ipynb plugin supports multiple kernels:
-- Python 3 (recommended)
-- Python 2
-- Julia
-- R
-- Bash
-- JavaScript
-- TypeScript
-- Markdown
-
-Auto-detection reads from notebook metadata. If no kernel is detected, a selection menu appears.
+- Neovim 0.8+
+- Terminal with image support (optional): Kitty, WezTerm, iTerm2
 
 ## Development
 
 ```bash
-# Run e2e tests with headless Neovim
-just test-e2e
+# Run tests
+just test
 
-# Run specific test
-just test-e2e-markdown
-just test-e2e-ipynb
-just test-e2e-image
-
-# Interactive testing
-just nvim-markdown
-just nvim-ipynb
-```
-
-## Project Structure
-
-```
-├── lua/
-│   ├── renderer-markdown/    # GitHub MD with side-by-side preview
-│   ├── renderer-ipynb/       # Jupyter notebook with kernel selection
-│   └── renderer-image/       # Terminal image display
-├── domain/                   # Hexagonal architecture
-│   ├── shared/              # Common types, ports, constants
-│   └── markdown/            # Markdown domain
-├── adapters/                # Parser implementations
-├── tests/
-│   ├── unit/                # Unit tests
-│   └── e2e/                 # Headless Neovim tests
-└── justfile                 # Task runner
+# Run specific tests
+just test-markdown
+just test-ipynb
+just test-image
+just test-filetype
 ```
 
 ## License
