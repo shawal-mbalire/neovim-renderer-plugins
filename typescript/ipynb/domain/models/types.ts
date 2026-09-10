@@ -37,6 +37,7 @@ export interface Output {
   readonly ename?: string;
   readonly evalue?: string;
   readonly traceback?: ReadonlyArray<string>;
+  readonly execution_count?: number | null;
 }
 
 export interface KernelDefinition {
@@ -52,29 +53,62 @@ export interface KernelDefinition {
 
 export function getKernelDefinitions(): KernelDefinition[] {
   return [
-    { name: "python3", display_name: "Python 3", language: "python", recommended: true },
-    { name: "python2", display_name: "Python 2", language: "python", recommended: false },
-    { name: "julia", display_name: "Julia", language: "julia", recommended: false },
+    {
+      name: "python3",
+      display_name: "Python 3",
+      language: "python",
+      recommended: true,
+    },
+    {
+      name: "python2",
+      display_name: "Python 2",
+      language: "python",
+      recommended: false,
+    },
+    {
+      name: "julia",
+      display_name: "Julia",
+      language: "julia",
+      recommended: false,
+    },
     { name: "r", display_name: "R", language: "r", recommended: false },
-    { name: "bash", display_name: "Bash", language: "bash", recommended: false },
-    { name: "javascript", display_name: "JavaScript", language: "javascript", recommended: false },
-    { name: "typescript", display_name: "TypeScript", language: "typescript", recommended: false },
+    {
+      name: "bash",
+      display_name: "Bash",
+      language: "bash",
+      recommended: false,
+    },
+    {
+      name: "javascript",
+      display_name: "JavaScript",
+      language: "javascript",
+      recommended: false,
+    },
+    {
+      name: "typescript",
+      display_name: "TypeScript",
+      language: "typescript",
+      recommended: false,
+    },
   ];
 }
 
 export function findKernelByName(name: string): KernelDefinition | undefined {
-  return getKernelDefinitions().find(k => k.name === name);
+  return getKernelDefinitions().find((k) => k.name === name);
 }
 
-export function detectKernel(metadata: Record<string, unknown>): KernelDefinition | undefined {
+export function detectKernel(
+  metadata: Record<string, unknown>,
+): KernelDefinition | undefined {
   const kernelspec = metadata.kernelspec as Record<string, string> | undefined;
   if (kernelspec?.name) {
     return findKernelByName(kernelspec.name);
   }
 
-  const languageInfo = metadata.language_info as Record<string, string> | undefined;
+  const languageInfo = metadata.language_info as
+    Record<string, string> | undefined;
   if (languageInfo?.name) {
-    return getKernelDefinitions().find(k => k.language === languageInfo.name);
+    return getKernelDefinitions().find((k) => k.language === languageInfo.name);
   }
 
   return undefined;

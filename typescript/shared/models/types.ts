@@ -73,7 +73,7 @@ export function createRenderLine(
   line: number,
   text: string,
   marks: RenderMark[] = [],
-  images: RenderImage[] = []
+  images: RenderImage[] = [],
 ): RenderLine {
   return { line, text, marks, images };
 }
@@ -82,14 +82,14 @@ export function createRenderMark(
   line: number,
   col: number,
   end_col: number,
-  hl: string
+  hl: string,
 ): RenderMark {
   return { line, col, end_col, hl };
 }
 
 export function createRenderResult(
   lines: RenderLine[] = [],
-  errors: RenderError[] = []
+  errors: RenderError[] = [],
 ): RenderResult {
   return { lines, errors };
 }
@@ -98,7 +98,7 @@ export function createRenderError(
   line: number,
   column: number,
   message: string,
-  severity: RenderSeverity = "error"
+  severity: RenderSeverity = "error",
 ): RenderError {
   return { line, column, message, severity };
 }

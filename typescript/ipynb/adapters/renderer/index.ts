@@ -6,7 +6,10 @@
 import type { Notebook, Cell, Output } from "../../domain/models/types";
 import type { NotebookRendererPort } from "../../domain/ports";
 import type { RenderResult, RenderMark } from "../../../shared/models/types";
-import { createRenderResult, createRenderMark } from "../../../shared/models/types";
+import {
+  createRenderResult,
+  createRenderMark,
+} from "../../../shared/models/types";
 
 // ============================================================================
 // Highlight Groups
@@ -32,10 +35,11 @@ export class NotebookRenderer implements NotebookRendererPort {
   render(notebook: Notebook, startLine: number = 0): RenderResult {
     this.currentLine = startLine;
     const lines: any[] = [];
-    const errors: RenderResult["errors"] = [];
+    const errors: any[] = [];
 
     // Notebook header
-    const kernel = notebook.metadata.kernelspec as Record<string, string> | undefined;
+    const kernel = notebook.metadata.kernelspec as
+      Record<string, string> | undefined;
     let header = "=== Jupyter Notebook";
     if (kernel?.display_name) {
       header += ` (${kernel.display_name})`;
@@ -45,7 +49,9 @@ export class NotebookRenderer implements NotebookRendererPort {
     lines.push({
       line: this.currentLine,
       text: header,
-      marks: [createRenderMark(this.currentLine, 0, header.length, "cell_header")],
+      marks: [
+        createRenderMark(this.currentLine, 0, header.length, "cell_header"),
+      ],
       images: [],
     });
     this.currentLine++;
@@ -82,7 +88,9 @@ export class NotebookRenderer implements NotebookRendererPort {
     lines.push({
       line: this.currentLine,
       text: headerText,
-      marks: [createRenderMark(this.currentLine, 0, headerText.length, "cell_header")],
+      marks: [
+        createRenderMark(this.currentLine, 0, headerText.length, "cell_header"),
+      ],
       images: [],
     });
     this.currentLine++;
@@ -94,7 +102,9 @@ export class NotebookRenderer implements NotebookRendererPort {
       lines.push({
         line: this.currentLine,
         text: content,
-        marks: hlGroup ? [createRenderMark(this.currentLine, 0, content.length, hlGroup)] : [],
+        marks: hlGroup
+          ? [createRenderMark(this.currentLine, 0, content.length, hlGroup)]
+          : [],
         images: [],
       });
       this.currentLine++;
@@ -164,11 +174,16 @@ export class NotebookRenderer implements NotebookRendererPort {
   private renderErrorOutput(output: Output, lines: any[]): void {
     const traceback = output.traceback || [];
     for (const line of traceback) {
-      const content = line.replace(/\x1B\[[0-9;]*m/g, "").replace(/\n$/, "").replace(/\r$/, "");
+      const content = line
+        .replace(/\x1B\[[0-9;]*m/g, "")
+        .replace(/\n$/, "")
+        .replace(/\r$/, "");
       lines.push({
         line: this.currentLine,
         text: `│ ${content}`,
-        marks: [createRenderMark(this.currentLine, 0, content.length + 2, "error")],
+        marks: [
+          createRenderMark(this.currentLine, 0, content.length + 2, "error"),
+        ],
         images: [],
       });
       this.currentLine++;
@@ -184,11 +199,20 @@ export class NotebookRenderer implements NotebookRendererPort {
         : [data["text/plain"] as string];
 
       for (const textLine of textContent) {
-        const content = (textLine as string).replace(/\n$/, "").replace(/\r$/, "");
+        const content = (textLine as string)
+          .replace(/\n$/, "")
+          .replace(/\r$/, "");
         lines.push({
           line: this.currentLine,
           text: `│ ${content}`,
-          marks: [createRenderMark(this.currentLine, 2, content.length + 2, "output_text")],
+          marks: [
+            createRenderMark(
+              this.currentLine,
+              2,
+              content.length + 2,
+              "output_text",
+            ),
+          ],
           images: [],
         });
         this.currentLine++;

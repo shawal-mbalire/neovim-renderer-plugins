@@ -6,7 +6,10 @@
 import type { MarkdownASTNode } from "../../domain/models/types";
 import type { MarkdownRendererPort } from "../../domain/ports";
 import type { RenderResult, RenderMark } from "../../../shared/models/types";
-import { createRenderResult, createRenderMark } from "../../../shared/models/types";
+import {
+  createRenderResult,
+  createRenderMark,
+} from "../../../shared/models/types";
 
 // ============================================================================
 // Highlight Groups
@@ -42,12 +45,12 @@ export class MarkdownRenderer implements MarkdownRendererPort {
 
   render(ast: MarkdownASTNode, startLine: number = 0): RenderResult {
     this.currentLine = startLine;
-    const lines: RenderResult["lines"] = [];
-    const errors: RenderResult["errors"] = [];
+    const lines: any[] = [];
+    const errors: any[] = [];
 
     this.renderNode(ast, lines);
 
-    return createRenderResult(lines as any[], errors);
+    return createRenderResult(lines, errors);
   }
 
   private renderNode(node: MarkdownASTNode, lines: any[]): void {
@@ -106,7 +109,9 @@ export class MarkdownRenderer implements MarkdownRendererPort {
     lines.push({
       line: this.currentLine,
       text,
-      marks: [createRenderMark(this.currentLine, 0, text.length, `heading${level}`)],
+      marks: [
+        createRenderMark(this.currentLine, 0, text.length, `heading${level}`),
+      ],
       images: [],
     });
     this.currentLine++;
@@ -127,7 +132,8 @@ export class MarkdownRenderer implements MarkdownRendererPort {
 
   private renderInlineFormatting(node: MarkdownASTNode, lines: any[]): void {
     const content = this.getTextContent(node);
-    const prefix = node.type === "bold" ? "**" : node.type === "italic" ? "*" : "~~";
+    const prefix =
+      node.type === "bold" ? "**" : node.type === "italic" ? "*" : "~~";
     const text = `${prefix}${content}${prefix}`;
 
     lines.push({
@@ -233,7 +239,14 @@ export class MarkdownRenderer implements MarkdownRendererPort {
       for (const cell of row.children) {
         const text = this.getTextContent(cell);
         cells.push(`| ${text} `);
-        marks.push(createRenderMark(this.currentLine, col, col + text.length + 3, "table"));
+        marks.push(
+          createRenderMark(
+            this.currentLine,
+            col,
+            col + text.length + 3,
+            "table",
+          ),
+        );
         col += text.length + 3;
       }
       cells.push("|");

@@ -54,41 +54,41 @@ local markdown_models = {}
 ---@param options? table
 ---@return MarkdownASTNode
 function markdown_models.create_node(type, options)
-  local node = { type = type }
-  if options then
-    for key, value in pairs(options) do
-      node[key] = value
-    end
-  end
-  return node
+	local node = { type = type }
+	if options then
+		for key, value in pairs(options) do
+			node[key] = value
+		end
+	end
+	return node
 end
 
 ---@param level number
 ---@param content string
 ---@return MarkdownASTNode
 function markdown_models.create_heading(level, content)
-  return markdown_models.create_node("heading", {
-    level = level,
-    children = { markdown_models.create_node("text", { content = content }) },
-  })
+	return markdown_models.create_node("heading", {
+		level = level,
+		children = { markdown_models.create_node("text", { content = content }) },
+	})
 end
 
 ---@param content string
 ---@return MarkdownASTNode
 function markdown_models.create_paragraph(content)
-  return markdown_models.create_node("paragraph", {
-    children = { markdown_models.create_node("text", { content = content }) },
-  })
+	return markdown_models.create_node("paragraph", {
+		children = { markdown_models.create_node("text", { content = content }) },
+	})
 end
 
 ---@param code string
 ---@param language? string
 ---@return MarkdownASTNode
 function markdown_models.create_code_block(code, language)
-  return markdown_models.create_node("code_block", {
-    content = code,
-    language = language,
-  })
+	return markdown_models.create_node("code_block", {
+		content = code,
+		language = language,
+	})
 end
 
 return markdown_models

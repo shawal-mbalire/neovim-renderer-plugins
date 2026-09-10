@@ -50,49 +50,59 @@ local ipynb_models = {}
 
 ---@return KernelDefinition[]
 function ipynb_models.get_kernel_definitions()
-  return {
-    { name = "python3", display_name = "Python 3", language = "python", recommended = true },
-    { name = "python2", display_name = "Python 2", language = "python", recommended = false },
-    { name = "julia", display_name = "Julia", language = "julia", recommended = false },
-    { name = "r", display_name = "R", language = "r", recommended = false },
-    { name = "bash", display_name = "Bash", language = "bash", recommended = false },
-    { name = "javascript", display_name = "JavaScript", language = "javascript", recommended = false },
-    { name = "typescript", display_name = "TypeScript", language = "typescript", recommended = false },
-  }
+	return {
+		{ name = "python3", display_name = "Python 3", language = "python", recommended = true },
+		{ name = "python2", display_name = "Python 2", language = "python", recommended = false },
+		{ name = "julia", display_name = "Julia", language = "julia", recommended = false },
+		{ name = "r", display_name = "R", language = "r", recommended = false },
+		{ name = "bash", display_name = "Bash", language = "bash", recommended = false },
+		{
+			name = "javascript",
+			display_name = "JavaScript",
+			language = "javascript",
+			recommended = false,
+		},
+		{
+			name = "typescript",
+			display_name = "TypeScript",
+			language = "typescript",
+			recommended = false,
+		},
+	}
 end
 
 ---@param name string
 ---@return KernelDefinition|nil
 function ipynb_models.find_kernel_by_name(name)
-  for _, kernel in ipairs(ipynb_models.get_kernel_definitions()) do
-    if kernel.name == name then
-      return kernel
-    end
-  end
-  return nil
+	for _, kernel in ipairs(ipynb_models.get_kernel_definitions()) do
+		if kernel.name == name then
+			return kernel
+		end
+	end
+	return nil
 end
 
 ---@param metadata table
 ---@return KernelDefinition|nil
 function ipynb_models.detect_kernel(metadata)
-  if not metadata then
-    return nil
-  end
+	if not metadata then
+		return nil
+	end
 
-  if metadata.kernelspec and metadata.kernelspec.name then
-    return ipynb_models.find_kernel_by_name(metadata.kernelspec.name)
-  end
+	if metadata.kernelspec and metadata.kernelspec.name then
+		return ipynb_models.find_kernel_by_name(metadata.kernelspec.name)
+	end
 
-  if metadata.language_info and metadata.language_info.name then
-    local lang = metadata.language_info.name
-    for _, kernel in ipairs(ipynb_models.get_kernel_definitions()) do
-      if kernel.language == lang then
-        return kernel
-      end
-    end
-  end
+	if metadata.language_info and metadata.language_info.name then
+		local lang = metadata.language_info.name
+		for _, kernel in ipairs(ipynb_models.get_kernel_definitions()) do
+			if kernel.language == lang then
+				return kernel
+			end
+		end
+	end
 
-  return nil
+	return nil
 end
 
 return ipynb_models

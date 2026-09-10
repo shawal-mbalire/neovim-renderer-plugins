@@ -14,7 +14,9 @@ export class IpynbParser implements NotebookParserPort {
     try {
       raw = JSON.parse(json);
     } catch (e) {
-      throw new NotebookParseError(`Invalid JSON: ${e instanceof Error ? e.message : "unknown error"}`);
+      throw new NotebookParseError(
+        `Invalid JSON: ${e instanceof Error ? e.message : "unknown error"}`,
+      );
     }
 
     if (!raw || typeof raw !== "object") {
@@ -28,14 +30,18 @@ export class IpynbParser implements NotebookParserPort {
     }
 
     if (obj.nbformat < 4 || obj.nbformat > 5) {
-      throw new NotebookParseError(`Invalid nbformat: expected 4-5, got ${obj.nbformat}`);
+      throw new NotebookParseError(
+        `Invalid nbformat: expected 4-5, got ${obj.nbformat}`,
+      );
     }
 
     if (!Array.isArray(obj.cells)) {
       throw new NotebookParseError("Missing or invalid cells array");
     }
 
-    const cells: Cell[] = obj.cells.map((cell, index) => this.parseCell(cell, index));
+    const cells: Cell[] = obj.cells.map((cell, index) =>
+      this.parseCell(cell, index),
+    );
     const metadata = (obj.metadata as Record<string, unknown>) || {};
 
     return {
@@ -57,12 +63,17 @@ export class IpynbParser implements NotebookParserPort {
 
     let outputs: Output[] | undefined;
     if (cellType === "code" && Array.isArray(cell.outputs)) {
-      outputs = cell.outputs.map((output, i) => this.parseOutput(output, index, i));
+      outputs = cell.outputs.map((output, i) =>
+        this.parseOutput(output, index, i),
+      );
     }
 
-    const execution_count = cellType === "code"
-      ? (typeof cell.execution_count === "number" ? cell.execution_count : null)
-      : undefined;
+    const execution_count =
+      cellType === "code"
+        ? typeof cell.execution_count === "number"
+          ? cell.execution_count
+          : null
+        : undefined;
 
     return {
       cell_type: cellType,
@@ -86,9 +97,15 @@ export class IpynbParser implements NotebookParserPort {
     return value as CellType;
   }
 
-  private parseOutput(raw: unknown, cellIndex: number, outputIndex: number): Output {
+  private parseOutput(
+    raw: unknown,
+    cellIndex: number,
+    outputIndex: number,
+  ): Output {
     if (!raw || typeof raw !== "object") {
-      throw new NotebookParseError(`Invalid output at cell ${cellIndex}, output ${outputIndex}`);
+      throw new NotebookParseError(
+        `Invalid output at cell ${cellIndex}, output ${outputIndex}`,
+      );
     }
 
     const output = raw as Record<string, unknown>;
@@ -106,7 +123,10 @@ export class IpynbParser implements NotebookParserPort {
         return {
           output_type: "execute_result",
           data: (output.data as Record<string, unknown>) || {},
-          execution_count: typeof output.execution_count === "number" ? output.execution_count : undefined,
+          execution_count:
+            typeof output.execution_count === "number"
+              ? output.execution_count
+              : undefined,
         };
 
       case "display_data":

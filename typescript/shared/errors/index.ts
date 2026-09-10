@@ -13,7 +13,7 @@ export class ParseError extends DomainError {
   constructor(
     message: string,
     public readonly line: number,
-    public readonly column: number
+    public readonly column: number,
   ) {
     super(`Parse error at line ${line}, column ${column}: ${message}`);
     this.name = "ParseError";

@@ -50,12 +50,12 @@ local shared_models = {}
 ---@param images? RenderImage[]
 ---@return RenderLine
 function shared_models.create_render_line(line, text, marks, images)
-  return {
-    line = line,
-    text = text,
-    marks = marks or {},
-    images = images or {},
-  }
+	return {
+		line = line,
+		text = text,
+		marks = marks or {},
+		images = images or {},
+	}
 end
 
 ---@param col_start number
@@ -63,20 +63,20 @@ end
 ---@field hl_group string
 ---@return RenderMark
 function shared_models.create_render_mark(col_start, col_end, hl_group)
-  return {
-    line = 0,
-    col = col_start,
-    end_col = col_end,
-    hl = hl_group,
-  }
+	return {
+		line = 0,
+		col = col_start,
+		end_col = col_end,
+		hl = hl_group,
+	}
 end
 
 ---@return RenderResult
 function shared_models.create_render_result()
-  return {
-    lines = {},
-    errors = {},
-  }
+	return {
+		lines = {},
+		errors = {},
+	}
 end
 
 return shared_models

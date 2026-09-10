@@ -5,7 +5,12 @@
 
 import type { MarkdownASTNode } from "../../domain/models/types";
 import type { MarkdownParserPort } from "../../domain/ports";
-import { createMarkdownNode, createHeading, createParagraph, createCodeBlock } from "../../domain/models/types";
+import {
+  createMarkdownNode,
+  createHeading,
+  createParagraph,
+  createCodeBlock,
+} from "../../domain/models/types";
 
 export class MarkdownParser implements MarkdownParserPort {
   parse(markdown: string): MarkdownASTNode {
@@ -28,7 +33,7 @@ export class MarkdownParser implements MarkdownParserPort {
       const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
       if (headingMatch) {
         (root.children as MarkdownASTNode[]).push(
-          createHeading(headingMatch[1].length, headingMatch[2])
+          createHeading(headingMatch[1].length, headingMatch[2]),
         );
         lineIndex++;
         continue;
@@ -37,7 +42,7 @@ export class MarkdownParser implements MarkdownParserPort {
       // Horizontal rule
       if (/^(\*{3,}|-{3,}|_{3,})\s*$/.test(line.trim())) {
         (root.children as MarkdownASTNode[]).push(
-          createMarkdownNode("horizontal_rule")
+          createMarkdownNode("horizontal_rule"),
         );
         lineIndex++;
         continue;
@@ -76,7 +81,11 @@ export class MarkdownParser implements MarkdownParserPort {
       }
 
       // Table
-      if (line.includes("|") && lineIndex + 1 < lines.length && /^\|?\s*[-:]+/.test(lines[lineIndex + 1])) {
+      if (
+        line.includes("|") &&
+        lineIndex + 1 < lines.length &&
+        /^\|?\s*[-:]+/.test(lines[lineIndex + 1])
+      ) {
         const result = this.parseTable(lines, lineIndex);
         (root.children as MarkdownASTNode[]).push(result.node);
         lineIndex = result.nextLine;
@@ -98,7 +107,10 @@ export class MarkdownParser implements MarkdownParserPort {
     return root;
   }
 
-  private parseCodeBlock(lines: string[], start: number): { node: MarkdownASTNode; nextLine: number } {
+  private parseCodeBlock(
+    lines: string[],
+    start: number,
+  ): { node: MarkdownASTNode; nextLine: number } {
     const langMatch = lines[start].trimStart().match(/^```(\w*)/);
     const language = langMatch?.[1] || undefined;
     const codeLines: string[] = [];
@@ -121,7 +133,10 @@ export class MarkdownParser implements MarkdownParserPort {
     };
   }
 
-  private parseBlockquote(lines: string[], start: number): { node: MarkdownASTNode; nextLine: number } {
+  private parseBlockquote(
+    lines: string[],
+    start: number,
+  ): { node: MarkdownASTNode; nextLine: number } {
     const contentLines: string[] = [];
     let i = start;
 
@@ -138,7 +153,10 @@ export class MarkdownParser implements MarkdownParserPort {
     };
   }
 
-  private parseTaskList(lines: string[], start: number): { node: MarkdownASTNode; nextLine: number } {
+  private parseTaskList(
+    lines: string[],
+    start: number,
+  ): { node: MarkdownASTNode; nextLine: number } {
     const items: MarkdownASTNode[] = [];
     let i = start;
 
@@ -147,16 +165,20 @@ export class MarkdownParser implements MarkdownParserPort {
       const todoMatch = lines[i].match(/^\s*[-*+]\s+\[\s\]\s+(.+)$/);
 
       if (doneMatch) {
-        items.push(createMarkdownNode("task_item", {
-          checked: true,
-          children: [{ type: "text", content: doneMatch[1] }],
-        }));
+        items.push(
+          createMarkdownNode("task_item", {
+            checked: true,
+            children: [{ type: "text", content: doneMatch[1] }],
+          }),
+        );
         i++;
       } else if (todoMatch) {
-        items.push(createMarkdownNode("task_item", {
-          checked: false,
-          children: [{ type: "text", content: todoMatch[1] }],
-        }));
+        items.push(
+          createMarkdownNode("task_item", {
+            checked: false,
+            children: [{ type: "text", content: todoMatch[1] }],
+          }),
+        );
         i++;
       } else {
         break;
@@ -169,7 +191,11 @@ export class MarkdownParser implements MarkdownParserPort {
     };
   }
 
-  private parseList(lines: string[], start: number, ordered: boolean): { node: MarkdownASTNode; nextLine: number } {
+  private parseList(
+    lines: string[],
+    start: number,
+    ordered: boolean,
+  ): { node: MarkdownASTNode; nextLine: number } {
     const items: MarkdownASTNode[] = [];
     let i = start;
     const pattern = ordered ? /^\s*\d+[.)]\s+(.+)$/ : /^\s*[-*+]\s+(.+)$/;
@@ -177,9 +203,11 @@ export class MarkdownParser implements MarkdownParserPort {
     while (i < lines.length) {
       const match = lines[i].match(pattern);
       if (match) {
-        items.push(createMarkdownNode("list_item", {
-          children: [{ type: "text", content: match[1] }],
-        }));
+        items.push(
+          createMarkdownNode("list_item", {
+            children: [{ type: "text", content: match[1] }],
+          }),
+        );
         i++;
       } else {
         break;
@@ -187,22 +215,34 @@ export class MarkdownParser implements MarkdownParserPort {
     }
 
     return {
-      node: createMarkdownNode(ordered ? "ordered_list" : "unordered_list", { children: items }),
+      node: createMarkdownNode(ordered ? "ordered_list" : "unordered_list", {
+        children: items,
+      }),
       nextLine: i,
     };
   }
 
-  private parseTable(lines: string[], start: number): { node: MarkdownASTNode; nextLine: number } {
+  private parseTable(
+    lines: string[],
+    start: number,
+  ): { node: MarkdownASTNode; nextLine: number } {
     const rows: MarkdownASTNode[] = [];
     let i = start;
 
     // Header
-    const headerCells = lines[i].split("|").map(c => c.trim()).filter(c => c);
-    rows.push(createMarkdownNode("table_row", {
-      children: headerCells.map(c => createMarkdownNode("table_cell", {
-        children: [{ type: "text", content: c }],
-      })),
-    }));
+    const headerCells = lines[i]
+      .split("|")
+      .map((c) => c.trim())
+      .filter((c) => c);
+    rows.push(
+      createMarkdownNode("table_row", {
+        children: headerCells.map((c) =>
+          createMarkdownNode("table_cell", {
+            children: [{ type: "text", content: c }],
+          }),
+        ),
+      }),
+    );
     i++;
 
     // Skip separator
@@ -210,12 +250,19 @@ export class MarkdownParser implements MarkdownParserPort {
 
     // Data rows
     while (i < lines.length && lines[i].includes("|")) {
-      const cells = lines[i].split("|").map(c => c.trim()).filter(c => c);
-      rows.push(createMarkdownNode("table_row", {
-        children: cells.map(c => createMarkdownNode("table_cell", {
-          children: [{ type: "text", content: c }],
-        })),
-      }));
+      const cells = lines[i]
+        .split("|")
+        .map((c) => c.trim())
+        .filter((c) => c);
+      rows.push(
+        createMarkdownNode("table_row", {
+          children: cells.map((c) =>
+            createMarkdownNode("table_cell", {
+              children: [{ type: "text", content: c }],
+            }),
+          ),
+        }),
+      );
       i++;
     }
 
@@ -225,11 +272,18 @@ export class MarkdownParser implements MarkdownParserPort {
     };
   }
 
-  private parseParagraph(lines: string[], start: number): { node: MarkdownASTNode; nextLine: number } {
+  private parseParagraph(
+    lines: string[],
+    start: number,
+  ): { node: MarkdownASTNode; nextLine: number } {
     const contentLines: string[] = [];
     let i = start;
 
-    while (i < lines.length && lines[i].trim() !== "" && !this.isBlockStart(lines[i])) {
+    while (
+      i < lines.length &&
+      lines[i].trim() !== "" &&
+      !this.isBlockStart(lines[i])
+    ) {
       contentLines.push(lines[i]);
       i++;
     }

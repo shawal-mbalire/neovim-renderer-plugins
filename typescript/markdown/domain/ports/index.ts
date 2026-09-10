@@ -10,7 +10,10 @@ import type { ParserPort, RendererPort } from "../../../shared/ports";
 // Markdown Parser Port
 // ============================================================================
 
-export interface MarkdownParserPort extends ParserPort<string, MarkdownASTNode> {
+export interface MarkdownParserPort extends ParserPort<
+  string,
+  MarkdownASTNode
+> {
   parse(markdown: string): MarkdownASTNode;
 }
 

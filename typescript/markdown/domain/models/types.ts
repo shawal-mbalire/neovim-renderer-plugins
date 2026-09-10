@@ -51,7 +51,7 @@ export interface MarkdownASTNode {
 
 export function createMarkdownNode(
   type: MarkdownNodeType,
-  options: Partial<Omit<MarkdownASTNode, "type">> = {}
+  options: Partial<Omit<MarkdownASTNode, "type">> = {},
 ): MarkdownASTNode {
   return { type, ...options };
 }
@@ -69,6 +69,9 @@ export function createParagraph(content: string): MarkdownASTNode {
   });
 }
 
-export function createCodeBlock(code: string, language?: string): MarkdownASTNode {
+export function createCodeBlock(
+  code: string,
+  language?: string,
+): MarkdownASTNode {
   return createMarkdownNode("code_block", { content: code, language });
 }

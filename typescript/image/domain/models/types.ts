@@ -54,7 +54,10 @@ export function createTerminalInfo(): TerminalInfo {
   const supported: ImageProtocol[] = [];
 
   // Kitty
-  if (termProgram.toLowerCase().includes("kitty") || termValue.toLowerCase().includes("kitty")) {
+  if (
+    termProgram.toLowerCase().includes("kitty") ||
+    termValue.toLowerCase().includes("kitty")
+  ) {
     if (!isTmux) {
       supported.push("kgp");
     }
@@ -75,7 +78,10 @@ export function createTerminalInfo(): TerminalInfo {
   }
 
   // Sixel
-  if (termValue.includes("sixel") || termProgram.toLowerCase().includes("foot")) {
+  if (
+    termValue.includes("sixel") ||
+    termProgram.toLowerCase().includes("foot")
+  ) {
     supported.push("sixel");
   }
 
