@@ -10,47 +10,47 @@ default:
 
 # Run all tests
 test:
-    #!/usr/bin/env bash
-    set -e
-    echo ""
-    echo "Running tests..."
-    echo ""
+	#!/usr/bin/env bash
+	set -e
+	echo ""
+	echo "Running tests..."
+	echo ""
 
-    echo "markdown:"
-    nvim --headless -u NONE --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/markdown_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
+	echo "markdown:"
+	nvim --headless --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/markdown_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
 
-    echo ""
-    echo "ipynb:"
-    nvim --headless -u NONE --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/ipynb_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total" | grep -v "E211"
+	echo ""
+	echo "ipynb:"
+	nvim --headless --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/ipynb_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total" | grep -v "E211"
 
-    echo ""
-    echo "image:"
-    nvim --headless -u NONE --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/image_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
+	echo ""
+	echo "image:"
+	nvim --headless --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/image_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
 
-    echo ""
-    echo "filetype:"
-    nvim --headless -u NONE --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/filetype_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
+	echo ""
+	echo "filetype:"
+	nvim --headless --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/filetype_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
 
-    echo ""
-    echo "plugin discovery:"
-    nvim --headless -u NONE --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/plugin_discovery_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
-    echo ""
+	echo ""
+	echo "plugin discovery:"
+	nvim --headless --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/plugin_discovery_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
+	echo ""
 
 # Individual test suites
 test-markdown:
-    nvim --headless -u NONE --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/markdown_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
+	nvim --headless --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/markdown_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
 
 test-ipynb:
-    nvim --headless -u NONE --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/ipynb_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total" | grep -v "E211"
+	nvim --headless --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/ipynb_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total" | grep -v "E211"
 
 test-image:
-    nvim --headless -u NONE --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/image_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
+	nvim --headless --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/image_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
 
 test-filetype:
-    nvim --headless -u NONE --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/filetype_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
+	nvim --headless --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/filetype_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
 
 test-discovery:
-    nvim --headless -u NONE --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/plugin_discovery_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
+	nvim --headless --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/plugin_discovery_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
 
 test-lazyvim:
     #!/usr/bin/env bash

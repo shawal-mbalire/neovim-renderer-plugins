@@ -1,5 +1,6 @@
 /**
  * Markdown Plugin - Composition Root
+ * Parses markdown and outputs structured render data
  */
 
 import { MarkdownParser } from "./adapters/parser";

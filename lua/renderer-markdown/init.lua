@@ -1,12 +1,7 @@
 ---
 --- Markdown Renderer Plugin
---- Nested Hexagonal Architecture
---- Entry point - Composition Root
+--- Calls TypeScript renderer via Bun for proper markdown rendering
 ---
-
-local timing_utils = require("shared.utils.timing")
-local markdown_parser = require("renderer-markdown.adapters.parser")
-local markdown_renderer_adapter = require("renderer-markdown.adapters.renderer")
 
 local markdown_plugin = {}
 
@@ -21,7 +16,7 @@ markdown_plugin.config = {
 		width = 50,
 		height = 15,
 		sync_scroll = true,
-		auto_open = true,
+		auto_open = false,
 	},
 	debounce_ms = 100,
 	show_render_time = true,
@@ -31,41 +26,236 @@ markdown_plugin.config = {
 -- State
 -- ============================================================================
 
-local plugin_state = nil
+local state = nil
+local job_id = nil
 
 local function get_state()
-	if plugin_state then
-		return plugin_state
+	if state then
+		return state
 	end
-	plugin_state = {
+	state = {
+		ns = vim.api.nvim_create_namespace("renderer_markdown"),
 		preview_wins = {},
 		preview_bufs = {},
 		timers = {},
 		last_render_ms = 0,
+		highlights_setup = false,
 	}
-	return plugin_state
+	return state
 end
 
 -- ============================================================================
--- Render
+-- Highlights
 -- ============================================================================
 
+local function setup_highlights()
+	local current_state = get_state()
+	if current_state.highlights_setup then
+		return
+	end
+	current_state.highlights_setup = true
+
+	local hl_map = {
+		{ "MarkdownH1", "Title" },
+		{ "MarkdownH2", "Title" },
+		{ "MarkdownH3", "Identifier" },
+		{ "MarkdownH4", "Identifier" },
+		{ "MarkdownH5", "Type" },
+		{ "MarkdownH6", "Type" },
+		{ "MarkdownBold", "Bold" },
+		{ "MarkdownItalic", "Italic" },
+		{ "MarkdownStrikethrough", "Strike" },
+		{ "MarkdownCode", "Special" },
+		{ "MarkdownCodeBlock", "Special" },
+		{ "MarkdownCodeFence", "Comment" },
+		{ "MarkdownLink", "Underlined" },
+		{ "MarkdownImage", "Underlined" },
+		{ "MarkdownBlockquote", "Comment" },
+		{ "MarkdownTableHeader", "Keyword" },
+		{ "MarkdownTableBorder", "Delimiter" },
+		{ "MarkdownListMarker", "Bullet" },
+		{ "MarkdownTaskDone", "Statement" },
+		{ "MarkdownTaskTodo", "Identifier" },
+		{ "MarkdownHr", "Comment" },
+		{ "MarkdownHtml", "PreProc" },
+		{ "MarkdownRenderTime", "Comment" },
+	}
+
+	for _, mapping in ipairs(hl_map) do
+		vim.api.nvim_set_hl(0, mapping[1], { link = mapping[2], default = true })
+	end
+end
+
+-- ============================================================================
+-- Renderer - Uses TypeScript via Bun
+-- ============================================================================
+
+local function get_renderer_script()
+	local plugin_dir = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h")
+	return plugin_dir .. "/../../typescript/markdown/index.ts"
+end
+
 local function render_buffer(buffer)
-	local timing_start = timing_utils.start()
+	if not vim.api.nvim_buf_is_valid(buffer) then
+		return 0
+	end
+
+	local timing_start = vim.uv.hrtime()
+
+	-- Get buffer content
+	local lines = vim.api.nvim_buf_get_lines(buffer, 0, -1, false)
+	local content = table.concat(lines, "\n")
+
+	-- Call TypeScript renderer via Bun
+	local script_path = get_renderer_script()
+	local cmd = string.format(
+		'echo \'{"type":"render","content":%s}\' | bun run %s 2>/dev/null',
+		vim.fn.json_encode(content),
+		script_path
+	)
+
+	local handle = io.popen(cmd, "r")
+	if not handle then
+		return 0
+	end
+
+	local output = handle:read("*a")
+	handle:close()
+
+	-- Parse response
+	local ok, result = pcall(vim.fn.json_decode, output)
+	if not ok or not result or not result.lines then
+		-- Fallback to basic rendering
+		return render_buffer_basic(buffer)
+	end
+
+	-- Apply render data
+	local current_state = get_state()
+	vim.api.nvim_buf_clear_namespace(buffer, current_state.ns, 0, -1)
+
+	for _, line_data in ipairs(result.lines) do
+		if line_data.marks then
+			for _, mark in ipairs(line_data.marks) do
+				if mark.virt_text then
+					vim.api.nvim_buf_set_extmark(buffer, current_state.ns, mark.line, mark.col, {
+						virt_text = { { mark.virt_text, mark.hl or "Comment" } },
+						virt_text_pos = mark.virt_text_pos or "inline",
+					})
+				elseif mark.hl and mark.col_end > mark.col_start then
+					pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, mark.line, mark.col_start, {
+						end_col = mark.col_end,
+						hl_group = mark.hl,
+					})
+				end
+			end
+		end
+	end
+
+	local render_time = (vim.uv.hrtime() - timing_start) / 1e6
+	current_state.last_render_ms = render_time
+
+	if markdown_plugin.config.show_render_time then
+		local status_msg = string.format("[markdown] %.2f ms", render_time)
+		vim.api.nvim_echo({ { status_msg, "MarkdownRenderTime" } }, false, {})
+	end
+
+	return render_time
+end
+
+-- ============================================================================
+-- Basic Renderer (fallback when Bun not available)
+-- ============================================================================
+
+local function render_buffer_basic(buffer)
+	local timing_start = vim.uv.hrtime()
 
 	if not vim.api.nvim_buf_is_valid(buffer) then
 		return 0
 	end
 
-	local render_time = markdown_renderer_adapter.render(buffer)
-
 	local current_state = get_state()
-	current_state.last_render_ms = render_time
+	setup_highlights()
 
-	if markdown_plugin.config.show_render_time then
-		local status_msg = string.format("[markdown] %.2f ms", render_time)
-		vim.api.nvim_echo({ { status_msg, "Comment" } }, false, {})
+	local buffer_lines = vim.api.nvim_buf_get_lines(buffer, 0, -1, false)
+	vim.api.nvim_buf_clear_namespace(buffer, current_state.ns, 0, -1)
+
+	for line_idx, line in ipairs(buffer_lines) do
+		local line_num = line_idx - 1
+
+		-- Headings
+		local heading_level = line:match("^(#{1,6})%s")
+		if heading_level then
+			pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, 0, {
+				end_col = #line,
+				hl_group = "MarkdownH" .. #heading_level,
+			})
+		end
+
+		-- Bold
+		for bold_text in line:gmatch("%*%*([^*]+)%*%*") do
+			local start_pos = line:find("%*%*" .. bold_text .. "%*%*", 1, true)
+			if start_pos then
+				pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, start_pos - 1, {
+					end_col = start_pos + #bold_text + 3,
+					hl_group = "MarkdownBold",
+				})
+			end
+		end
+
+		-- Italic
+		for italic_text in line:gmatch("%*([^*]+)%*") do
+			local start_pos = line:find("%*" .. italic_text .. "%*", 1, true)
+			if start_pos then
+				pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, start_pos - 1, {
+					end_col = start_pos + #italic_text + 1,
+					hl_group = "MarkdownItalic",
+				})
+			end
+		end
+
+		-- Code
+		for code_text in line:gmatch("`([^`]+)`") do
+			local start_pos = line:find("`" .. code_text .. "`", 1, true)
+			if start_pos then
+				pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, start_pos - 1, {
+					end_col = start_pos + #code_text + 1,
+					hl_group = "MarkdownCode",
+				})
+			end
+		end
+
+		-- Links
+		for link_text, link_url in line:gmatch("%[([^%]]+)%]%(([^)]+)%)") do
+			local start_pos = line:find("%[" .. link_text .. "%]%(" .. link_url .. "%)", 1, true)
+			if start_pos then
+				pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, start_pos - 1, {
+					end_col = start_pos + #link_text + #link_url + 3,
+					hl_group = "MarkdownLink",
+				})
+			end
+		end
+
+		-- Blockquote
+		if line:match("^>%s") then
+			pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, 0, {
+				end_col = 2,
+				hl_group = "MarkdownBlockquote",
+			})
+		end
+
+		-- Horizontal rule
+		if line:match("^%-%-%-%s*$") or line:match("^%*%*%*%s*$") then
+			pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, 0, {
+				end_col = #line,
+				hl_group = "MarkdownHr",
+				virt_text = { { string.rep("─", vim.o.columns), "MarkdownHr" } },
+				virt_text_pos = "overlay",
+			})
+		end
 	end
+
+	local render_time = (vim.uv.hrtime() - timing_start) / 1e6
+	current_state.last_render_ms = render_time
 
 	return render_time
 end
@@ -158,21 +348,20 @@ end
 
 function markdown_plugin.setup(opts)
 	markdown_plugin.config = vim.tbl_deep_extend("force", markdown_plugin.config, opts or {})
+	setup_highlights()
 
 	local augroup = vim.api.nvim_create_augroup("RendererMarkdown", { clear = true })
 
-	vim.api.nvim_create_autocmd("BufEnter", {
+	-- Render on file open
+	vim.api.nvim_create_autocmd("BufReadPost", {
 		group = augroup,
 		pattern = { "*.md", "*.markdown" },
 		callback = function(event)
-			if markdown_plugin.config.preview.enabled and markdown_plugin.config.preview.auto_open then
-				vim.defer_fn(function()
-					markdown_plugin.open_preview(event.buf)
-				end, 50)
-			end
+			render_buffer(event.buf)
 		end,
 	})
 
+	-- Render on changes
 	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
 		group = augroup,
 		pattern = { "*.md", "*.markdown" },
@@ -188,6 +377,7 @@ function markdown_plugin.setup(opts)
 		end,
 	})
 
+	-- Sync scroll
 	if markdown_plugin.config.preview.sync_scroll then
 		vim.api.nvim_create_autocmd("CursorMoved", {
 			group = augroup,
@@ -210,6 +400,7 @@ function markdown_plugin.setup(opts)
 		})
 	end
 
+	-- Cleanup
 	vim.api.nvim_create_autocmd("BufDelete", {
 		group = augroup,
 		callback = function(event)
@@ -219,6 +410,7 @@ function markdown_plugin.setup(opts)
 		end,
 	})
 
+	-- Commands
 	vim.api.nvim_create_user_command("MarkdownPreview", function()
 		markdown_plugin.open_preview(vim.api.nvim_get_current_buf())
 	end, {})

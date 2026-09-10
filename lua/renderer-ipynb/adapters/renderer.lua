@@ -110,7 +110,7 @@ local function render_cell(cell, cell_index, output_lines, output_marks)
 
 	-- Cell header
 	local header_text = string.format("─── Cell %d: %s", cell_index, cell_type:upper())
-	if execution_count then
+	if execution_count and type(execution_count) == "number" then
 		header_text = header_text .. string.format(" [%d]", execution_count)
 	end
 	header_text = header_text .. " ───"
