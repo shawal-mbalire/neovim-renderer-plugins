@@ -118,25 +118,26 @@ local function run_tests()
     })
 
     -- Create a notebook with Python kernel
-    local notebook_json = vim.fn.json_encode({
-      cells = {},
-      metadata = {
-        kernelspec = {
-          display_name = "Python 3",
-          language = "python",
-          name = "python3",
-        },
-      },
-      nbformat = 4,
-      nbformat_minor = 5,
-    })
+    local notebook_json = [[{
+      "cells": [],
+      "metadata": { "kernelspec": { "display_name": "Python 3", "language": "python", "name": "python3" } },
+      "nbformat": 4,
+      "nbformat_minor": 5
+    }]]
 
-    local test_buffer = vim.api.nvim_create_buf(true, true)
-    vim.api.nvim_buf_set_lines(test_buffer, 0, -1, false, vim.split(notebook_json, "\n"))
+    -- Create temp file
+    local temp_dir = vim.fn.tempname()
+    vim.fn.mkdir(temp_dir, "p")
+    local file_path = temp_dir .. "/kernel_test.ipynb"
 
-    -- Render
-    local render_command = string.format("buffer %d", test_buffer)
-    vim.cmd(render_command)
+    local file_handle = io.open(file_path, "w")
+    file_handle:write(notebook_json)
+    file_handle:close()
+
+    -- Edit the file (triggers BufReadPost)
+    vim.cmd("edit " .. file_path)
+
+    local test_buffer = vim.api.nvim_get_current_buf()
 
     -- Verify kernel info is displayed
     local buffer_lines = vim.api.nvim_buf_get_lines(test_buffer, 0, -1, false)
@@ -144,7 +145,7 @@ local function run_tests()
     assert(full_content:find("Python 3"), "Should display detected kernel name")
 
     -- Cleanup
-    vim.api.nvim_buf_delete(test_buffer, { force = true })
+    pcall(function() vim.fn.delete(temp_dir, "rf") end)
   end)
 
   -- Test 6: Error output rendering
@@ -155,33 +156,41 @@ local function run_tests()
       auto_select_kernel = false,
     })
 
-    local notebook_json = vim.fn.json_encode({
-      cells = {
+    local notebook_json = [[{
+      "cells": [
         {
-          cell_type = "code",
-          source = { "1/0" },
-          outputs = {
+          "cell_type": "code",
+          "source": ["1/0"],
+          "outputs": [
             {
-              output_type = "error",
-              ename = "ZeroDivisionError",
-              evalue = "division by zero",
-              traceback = { "Traceback: ZeroDivisionError" },
-            },
-          },
-          execution_count = 1,
-          metadata = {},
-        },
-      },
-      metadata = {},
-      nbformat = 4,
-      nbformat_minor = 5,
-    })
+              "output_type": "error",
+              "ename": "ZeroDivisionError",
+              "evalue": "division by zero",
+              "traceback": ["Traceback: ZeroDivisionError: division by zero"]
+            }
+          ],
+          "execution_count": 1,
+          "metadata": {}
+        }
+      ],
+      "metadata": {},
+      "nbformat": 4,
+      "nbformat_minor": 5
+    }]]
 
-    local test_buffer = vim.api.nvim_create_buf(true, true)
-    vim.api.nvim_buf_set_lines(test_buffer, 0, -1, false, vim.split(notebook_json, "\n"))
+    -- Create temp file
+    local temp_dir = vim.fn.tempname()
+    vim.fn.mkdir(temp_dir, "p")
+    local file_path = temp_dir .. "/error_test.ipynb"
 
-    local render_command = string.format("buffer %d", test_buffer)
-    vim.cmd(render_command)
+    local file_handle = io.open(file_path, "w")
+    file_handle:write(notebook_json)
+    file_handle:close()
+
+    -- Edit the file (triggers BufReadPost)
+    vim.cmd("edit " .. file_path)
+
+    local test_buffer = vim.api.nvim_get_current_buf()
 
     local buffer_lines = vim.api.nvim_buf_get_lines(test_buffer, 0, -1, false)
     local full_content = table.concat(buffer_lines, "\n")
@@ -189,7 +198,7 @@ local function run_tests()
     assert(full_content:find("division by zero"), "Should display error message")
 
     -- Cleanup
-    vim.api.nvim_buf_delete(test_buffer, { force = true })
+    pcall(function() vim.fn.delete(temp_dir, "rf") end)
   end)
 
   -- Print results with timing
