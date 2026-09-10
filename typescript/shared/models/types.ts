@@ -1,6 +1,6 @@
 /**
  * Shared Domain Models
- * Pure data structures with zero external dependencies
+ * Pure data structures used across all plugins
  */
 
 // ============================================================================
@@ -11,19 +11,17 @@ export type RenderSeverity = "error" | "warning" | "info";
 export type FileType = "markdown" | "ipynb" | "html";
 export type ImageFormat = "png" | "jpeg" | "gif" | "webp" | "svg";
 export type ImageProtocol = "kgp" | "kgp_old" | "iip" | "sixel" | "none";
-export type OutputType = "stream" | "execute_result" | "display_data" | "error";
-export type CellType = "code" | "markdown" | "raw";
 
 // ============================================================================
-// Dataclass Pattern - Immutable record types
+// Render Types
 // ============================================================================
 
 export interface RenderMark {
-  readonly col_start: number;
-  readonly col_end: number;
-  readonly hl_group: string;
+  readonly line: number;
+  readonly col: number;
+  readonly end_col: number;
+  readonly hl: string;
   readonly virt_text?: string;
-  readonly virt_text_pos?: "inline" | "overlay" | "right_align";
 }
 
 export interface RenderImage {
@@ -31,7 +29,6 @@ export interface RenderImage {
   readonly row: number;
   readonly width: number;
   readonly height: number;
-  readonly data?: string;
   readonly path?: string;
   readonly placeholder?: string;
 }
@@ -69,7 +66,7 @@ export interface PluginMessage {
 }
 
 // ============================================================================
-// Factory Functions - Immutable construction
+// Factory Functions
 // ============================================================================
 
 export function createRenderLine(
@@ -82,12 +79,12 @@ export function createRenderLine(
 }
 
 export function createRenderMark(
-  col_start: number,
-  col_end: number,
-  hl_group: string,
-  virt_text?: string
+  line: number,
+  col: number,
+  end_col: number,
+  hl: string
 ): RenderMark {
-  return { col_start, col_end, hl_group, virt_text };
+  return { line, col, end_col, hl };
 }
 
 export function createRenderResult(

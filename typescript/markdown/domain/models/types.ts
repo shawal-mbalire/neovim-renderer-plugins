@@ -4,7 +4,7 @@
  */
 
 // ============================================================================
-// StrEnum Pattern
+// Node Types (StrEnum pattern)
 // ============================================================================
 
 export type MarkdownNodeType =
@@ -28,21 +28,10 @@ export type MarkdownNodeType =
   | "table"
   | "table_row"
   | "table_cell"
-  | "horizontal_rule"
-  | "alert"
-  | "math_inline"
-  | "math_display"
-  | "emoji"
-  | "footnote_ref"
-  | "footnote_def"
-  | "html_block"
-  | "raw_html"
-  | "mermaid";
-
-export type AlertType = "note" | "tip" | "important" | "warning" | "caution";
+  | "horizontal_rule";
 
 // ============================================================================
-// Dataclass Pattern
+// AST Node
 // ============================================================================
 
 export interface MarkdownASTNode {
@@ -54,11 +43,6 @@ export interface MarkdownASTNode {
   readonly language?: string;
   readonly ordered?: boolean;
   readonly checked?: boolean;
-  readonly alertType?: AlertType;
-  readonly mathContent?: string;
-  readonly footnoteId?: string;
-  readonly emojiName?: string;
-  readonly isHTML?: boolean;
 }
 
 // ============================================================================
@@ -87,11 +71,4 @@ export function createParagraph(content: string): MarkdownASTNode {
 
 export function createCodeBlock(code: string, language?: string): MarkdownASTNode {
   return createMarkdownNode("code_block", { content: code, language });
-}
-
-export function createAlert(alertType: AlertType, content: string): MarkdownASTNode {
-  return createMarkdownNode("alert", {
-    alertType,
-    children: [createMarkdownNode("text", { content })],
-  });
 }

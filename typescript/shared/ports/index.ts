@@ -1,13 +1,12 @@
 /**
  * Shared Domain Ports
- * Interfaces defining required I/O contracts
- * Adapters must implement these interfaces
+ * Interfaces that adapters must implement
  */
 
 import type { RenderResult, PluginMessage } from "../models/types";
 
 // ============================================================================
-// Parser Port - Input → AST
+// Parser Port
 // ============================================================================
 
 export interface ParserPort<TInput = string, TOutput = unknown> {
@@ -15,7 +14,7 @@ export interface ParserPort<TInput = string, TOutput = unknown> {
 }
 
 // ============================================================================
-// Renderer Port - AST → Render commands
+// Renderer Port
 // ============================================================================
 
 export interface RendererPort<TInput = unknown> {
@@ -23,17 +22,7 @@ export interface RendererPort<TInput = unknown> {
 }
 
 // ============================================================================
-// FileSystem Port - File operations
-// ============================================================================
-
-export interface FileSystemPort {
-  readFile(path: string): Promise<string>;
-  readBinary(path: string): Promise<Buffer>;
-  fileExists(path: string): Promise<boolean>;
-}
-
-// ============================================================================
-// Communication Port - Bun ↔ Neovim
+// Communication Port
 // ============================================================================
 
 export interface CommunicationPort {
@@ -42,19 +31,11 @@ export interface CommunicationPort {
 }
 
 // ============================================================================
-// Terminal Detection Port
+// FileSystem Port
 // ============================================================================
 
-export interface TerminalDetectionPort {
-  detect(): TerminalInfo;
-  getProtocol(): string;
-}
-
-export interface TerminalInfo {
-  readonly protocol: string;
-  readonly supported: ReadonlyArray<string>;
-  readonly maxImageWidth: number;
-  readonly maxImageHeight: number;
-  readonly tmux: boolean;
-  readonly zellij: boolean;
+export interface FileSystemPort {
+  readFile(path: string): Promise<string>;
+  readBinary(path: string): Promise<Buffer>;
+  fileExists(path: string): Promise<boolean>;
 }

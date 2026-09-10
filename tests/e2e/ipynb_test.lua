@@ -109,14 +109,19 @@ local function run_tests()
       nbformat_minor = 5,
     })
 
-    -- Create a test buffer
-    local test_buffer = vim.api.nvim_create_buf(true, true)
-    vim.api.nvim_buf_set_lines(test_buffer, 0, -1, false, vim.split(notebook_json, "\n"))
-    vim.bo[test_buffer].filetype = "ipynb"
+    -- Create temp file to trigger BufReadPost
+    local temp_dir = vim.fn.tempname()
+    vim.fn.mkdir(temp_dir, "p")
+    local file_path = temp_dir .. "/test.ipynb"
 
-    -- Switch to buffer to trigger BufReadPost autocmd
-    local render_command = string.format("buffer %d", test_buffer)
-    vim.cmd(render_command)
+    local file_handle = io.open(file_path, "w")
+    file_handle:write(notebook_json)
+    file_handle:close()
+
+    -- Edit the file (triggers BufReadPost)
+    vim.cmd("edit " .. file_path)
+
+    local test_buffer = vim.api.nvim_get_current_buf()
 
     -- Verify buffer has content
     local buffer_lines = vim.api.nvim_buf_get_lines(test_buffer, 0, -1, false)
@@ -128,7 +133,7 @@ local function run_tests()
     assert(full_content:find("Cell 1"), "Should contain cell headers")
 
     -- Cleanup
-    vim.api.nvim_buf_delete(test_buffer, { force = true })
+    vim.fn.delete(temp_dir, "rf")
   end)
 
   -- Test 5: Kernel detection
