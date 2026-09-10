@@ -56,9 +56,9 @@ local function setup_highlights()
 	vim.api.nvim_set_hl(0, hl.heading6, { fg = "#1f6feb", bold = true, ctermfg = 33 })
 
 	-- Formatting
-	vim.api.nvim_set_hl(0, hl.bold, { bold = true, cterm = "bold" })
-	vim.api.nvim_set_hl(0, hl.italic, { italic = true, cterm = "italic" })
-	vim.api.nvim_set_hl(0, hl.strikethrough, { strikethrough = true, cterm = "strikethrough" })
+	vim.api.nvim_set_hl(0, hl.bold, { bold = true })
+	vim.api.nvim_set_hl(0, hl.italic, { italic = true })
+	vim.api.nvim_set_hl(0, hl.strikethrough, { strikethrough = true })
 
 	-- Code
 	vim.api.nvim_set_hl(0, hl.code, { fg = "#e06c75", bg = "#282c34", ctermfg = 174, ctermbg = 235 })

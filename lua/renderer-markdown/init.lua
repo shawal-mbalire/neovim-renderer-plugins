@@ -1,6 +1,6 @@
 ---
 --- Markdown Renderer Plugin
---- Calls TypeScript renderer via Bun for proper markdown rendering
+--- TypeScript does the heavy lifting, Lua applies render data
 ---
 
 local markdown_plugin = {}
@@ -27,7 +27,6 @@ markdown_plugin.config = {
 -- ============================================================================
 
 local state = nil
-local job_id = nil
 
 local function get_state()
 	if state then
@@ -39,134 +38,101 @@ local function get_state()
 		preview_bufs = {},
 		timers = {},
 		last_render_ms = 0,
-		highlights_setup = false,
 	}
 	return state
 end
 
 -- ============================================================================
--- Highlights
+-- Highlights (minimal - just for fallback)
 -- ============================================================================
 
+local hl = {
+	heading1 = "MarkdownH1",
+	heading2 = "MarkdownH2",
+	heading3 = "MarkdownH3",
+	bold = "MarkdownBold",
+	italic = "MarkdownItalic",
+	code = "MarkdownCode",
+	link = "MarkdownLink",
+	blockquote = "MarkdownBlockquote",
+	hr = "MarkdownHr",
+}
+
 local function setup_highlights()
-	local current_state = get_state()
-	if current_state.highlights_setup then
-		return
-	end
-	current_state.highlights_setup = true
-
-	local hl_map = {
-		{ "MarkdownH1", "Title" },
-		{ "MarkdownH2", "Title" },
-		{ "MarkdownH3", "Identifier" },
-		{ "MarkdownH4", "Identifier" },
-		{ "MarkdownH5", "Type" },
-		{ "MarkdownH6", "Type" },
-		{ "MarkdownBold", "Bold" },
-		{ "MarkdownItalic", "Italic" },
-		{ "MarkdownStrikethrough", "Strike" },
-		{ "MarkdownCode", "Special" },
-		{ "MarkdownCodeBlock", "Special" },
-		{ "MarkdownCodeFence", "Comment" },
-		{ "MarkdownLink", "Underlined" },
-		{ "MarkdownImage", "Underlined" },
-		{ "MarkdownBlockquote", "Comment" },
-		{ "MarkdownTableHeader", "Keyword" },
-		{ "MarkdownTableBorder", "Delimiter" },
-		{ "MarkdownListMarker", "Bullet" },
-		{ "MarkdownTaskDone", "Statement" },
-		{ "MarkdownTaskTodo", "Identifier" },
-		{ "MarkdownHr", "Comment" },
-		{ "MarkdownHtml", "PreProc" },
-		{ "MarkdownRenderTime", "Comment" },
-	}
-
-	for _, mapping in ipairs(hl_map) do
-		vim.api.nvim_set_hl(0, mapping[1], { link = mapping[2], default = true })
-	end
+	vim.api.nvim_set_hl(0, hl.heading1, { fg = "#1f6feb", bold = true })
+	vim.api.nvim_set_hl(0, hl.heading2, { fg = "#1f6feb", bold = true })
+	vim.api.nvim_set_hl(0, hl.heading3, { fg = "#1f6feb", bold = true })
+	vim.api.nvim_set_hl(0, hl.bold, { bold = true })
+	vim.api.nvim_set_hl(0, hl.italic, { italic = true })
+	vim.api.nvim_set_hl(0, hl.code, { fg = "#e06c75", bg = "#282c34" })
+	vim.api.nvim_set_hl(0, hl.link, { fg = "#61afef", underline = true })
+	vim.api.nvim_set_hl(0, hl.blockquote, { fg = "#5c6370", italic = true })
+	vim.api.nvim_set_hl(0, hl.hr, { fg = "#3e4451" })
 end
 
 -- ============================================================================
--- Renderer - Uses TypeScript via Bun
+-- TypeScript Renderer Integration
 -- ============================================================================
 
 local function get_renderer_script()
-	local plugin_dir = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h")
-	return plugin_dir .. "/../../typescript/markdown/index.ts"
-end
+	-- Try common paths
+	local paths = {
+		"/Volumes/Samsung/GitHub/neovim-plugin/typescript/markdown/cli.ts",
+		vim.fn.expand("~") .. "/.local/share/nvim/lazy/neovim-renderer-plugins/typescript/markdown/cli.ts",
+	}
 
-local function render_buffer(buffer)
-	if not vim.api.nvim_buf_is_valid(buffer) then
-		return 0
-	end
-
-	local timing_start = vim.uv.hrtime()
-
-	-- Get buffer content
-	local lines = vim.api.nvim_buf_get_lines(buffer, 0, -1, false)
-	local content = table.concat(lines, "\n")
-
-	-- Call TypeScript renderer via Bun
-	local script_path = get_renderer_script()
-	local cmd = string.format(
-		'echo \'{"type":"render","content":%s}\' | bun run %s 2>/dev/null',
-		vim.fn.json_encode(content),
-		script_path
-	)
-
-	local handle = io.popen(cmd, "r")
-	if not handle then
-		return 0
-	end
-
-	local output = handle:read("*a")
-	handle:close()
-
-	-- Parse response
-	local ok, result = pcall(vim.fn.json_decode, output)
-	if not ok or not result or not result.lines then
-		-- Fallback to basic rendering
-		return render_buffer_basic(buffer)
-	end
-
-	-- Apply render data
-	local current_state = get_state()
-	vim.api.nvim_buf_clear_namespace(buffer, current_state.ns, 0, -1)
-
-	for _, line_data in ipairs(result.lines) do
-		if line_data.marks then
-			for _, mark in ipairs(line_data.marks) do
-				if mark.virt_text then
-					vim.api.nvim_buf_set_extmark(buffer, current_state.ns, mark.line, mark.col, {
-						virt_text = { { mark.virt_text, mark.hl or "Comment" } },
-						virt_text_pos = mark.virt_text_pos or "inline",
-					})
-				elseif mark.hl and mark.col_end > mark.col_start then
-					pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, mark.line, mark.col_start, {
-						end_col = mark.col_end,
-						hl_group = mark.hl,
-					})
-				end
-			end
+	for _, path in ipairs(paths) do
+		if vim.fn.filereadable(path) == 1 then
+			return path
 		end
 	end
 
-	local render_time = (vim.uv.hrtime() - timing_start) / 1e6
-	current_state.last_render_ms = render_time
-
-	if markdown_plugin.config.show_render_time then
-		local status_msg = string.format("[markdown] %.2f ms", render_time)
-		vim.api.nvim_echo({ { status_msg, "MarkdownRenderTime" } }, false, {})
+	-- Fallback - construct from runtimepath
+	local rtp = vim.o.runtimepath
+	for rtp_path in rtp:gmatch("[^,]+") do
+		local cli_path = rtp_path .. "/typescript/markdown/cli.ts"
+		if vim.fn.filereadable(cli_path) == 1 then
+			return cli_path
+		end
 	end
 
-	return render_time
+	return ""
+end
+
+local function call_ts_renderer(content)
+	local script_path = get_renderer_script()
+
+	if script_path == "" then
+		return nil
+	end
+
+	-- Create JSON payload
+	local json = vim.fn.json_encode({ type = "render", content = content })
+
+	-- Escape single quotes in JSON
+	local escaped_json = json:gsub("'", "'\\''")
+
+	-- Call TypeScript via Bun using echo pipe
+	local cmd = string.format("echo '%s' | bun run %s 2>/dev/null", escaped_json, script_path)
+	local output = vim.fn.system(cmd)
+
+	if not output or output == "" then
+		return nil
+	end
+
+	local ok, result = pcall(vim.fn.json_decode, output)
+	if not ok then
+		return nil
+	end
+
+	return result
 end
 
 -- ============================================================================
--- Basic Renderer (fallback when Bun not available)
+-- Fallback Renderer (pure Lua when Bun not available)
 -- ============================================================================
 
-local function render_buffer_basic(buffer)
+local function render_fallback(buffer)
 	local timing_start = vim.uv.hrtime()
 
 	if not vim.api.nvim_buf_is_valid(buffer) then
@@ -197,18 +163,18 @@ local function render_buffer_basic(buffer)
 			if start_pos then
 				pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, start_pos - 1, {
 					end_col = start_pos + #bold_text + 3,
-					hl_group = "MarkdownBold",
+					hl_group = hl.bold,
 				})
 			end
 		end
 
 		-- Italic
-		for italic_text in line:gmatch("%*([^*]+)%*") do
-			local start_pos = line:find("%*" .. italic_text .. "%*", 1, true)
+		for italic_text in line:gmatch("[^%*]%*([^*]+)%*[^%*]") do
+			local start_pos = line:find("[^%*]%*" .. italic_text .. "%*[^%*]")
 			if start_pos then
-				pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, start_pos - 1, {
+				pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, start_pos, {
 					end_col = start_pos + #italic_text + 1,
-					hl_group = "MarkdownItalic",
+					hl_group = hl.italic,
 				})
 			end
 		end
@@ -219,7 +185,7 @@ local function render_buffer_basic(buffer)
 			if start_pos then
 				pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, start_pos - 1, {
 					end_col = start_pos + #code_text + 1,
-					hl_group = "MarkdownCode",
+					hl_group = hl.code,
 				})
 			end
 		end
@@ -230,7 +196,7 @@ local function render_buffer_basic(buffer)
 			if start_pos then
 				pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, start_pos - 1, {
 					end_col = start_pos + #link_text + #link_url + 3,
-					hl_group = "MarkdownLink",
+					hl_group = hl.link,
 				})
 			end
 		end
@@ -239,7 +205,7 @@ local function render_buffer_basic(buffer)
 		if line:match("^>%s") then
 			pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, 0, {
 				end_col = 2,
-				hl_group = "MarkdownBlockquote",
+				hl_group = hl.blockquote,
 			})
 		end
 
@@ -247,15 +213,70 @@ local function render_buffer_basic(buffer)
 		if line:match("^%-%-%-%s*$") or line:match("^%*%*%*%s*$") then
 			pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, line_num, 0, {
 				end_col = #line,
-				hl_group = "MarkdownHr",
-				virt_text = { { string.rep("─", vim.o.columns), "MarkdownHr" } },
-				virt_text_pos = "overlay",
+				hl_group = hl.hr,
 			})
 		end
 	end
 
-	local render_time = (vim.uv.hrtime() - timing_start) / 1e6
+	return (vim.uv.hrtime() - timing_start) / 1e6
+end
+
+-- ============================================================================
+-- Main Renderer
+-- ============================================================================
+
+local function render_buffer(buffer)
+	if not vim.api.nvim_buf_is_valid(buffer) then
+		return 0
+	end
+
+	local timing_start = vim.uv.hrtime()
+
+	-- Get buffer content
+	local lines = vim.api.nvim_buf_get_lines(buffer, 0, -1, false)
+	local content = table.concat(lines, "\n")
+
+	-- Try TypeScript renderer first
+	local result = call_ts_renderer(content)
+	print("[DEBUG] TS result: " .. vim.inspect(result))
+
+	local render_time
+	if result and result.lines then
+		-- Apply TypeScript render data
+		local current_state = get_state()
+		vim.api.nvim_buf_clear_namespace(buffer, current_state.ns, 0, -1)
+
+		for _, line_data in ipairs(result.lines) do
+			if line_data.marks then
+				for _, mark in ipairs(line_data.marks) do
+					if mark.virt_text then
+						pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, mark.line, mark.col, {
+							virt_text = { { mark.virt_text, mark.hl or "Comment" } },
+							virt_text_pos = mark.virt_text_pos or "inline",
+						})
+					elseif mark.hl and mark.col_end and mark.col_start and mark.col_end > mark.col_start then
+						pcall(vim.api.nvim_buf_set_extmark, buffer, current_state.ns, mark.line, mark.col_start, {
+							end_col = mark.col_end,
+							hl_group = mark.hl,
+						})
+					end
+				end
+			end
+		end
+
+		render_time = (vim.uv.hrtime() - timing_start) / 1e6
+	else
+		-- Fallback to Lua renderer
+		render_time = render_fallback(buffer)
+	end
+
+	local current_state = get_state()
 	current_state.last_render_ms = render_time
+
+	if markdown_plugin.config.show_render_time then
+		local status_msg = string.format("[markdown] %.2f ms", render_time)
+		vim.api.nvim_echo({ { status_msg, "Comment" } }, false, {})
+	end
 
 	return render_time
 end
@@ -348,7 +369,6 @@ end
 
 function markdown_plugin.setup(opts)
 	markdown_plugin.config = vim.tbl_deep_extend("force", markdown_plugin.config, opts or {})
-	setup_highlights()
 
 	local augroup = vim.api.nvim_create_augroup("RendererMarkdown", { clear = true })
 
