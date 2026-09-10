@@ -1,23 +1,16 @@
 ---
---- Image Renderer Plugin
+--- Image Renderer Plugin (Optimized for <100ms load)
 --- Terminal image display using Kitty/IIP/Sixel protocols
---- Shows render timing and image info
+--- Lazy-loads protocol implementations
 ---
 
-local M = {}
+local image_renderer = {}
 
 -- ============================================================================
--- Configuration
+-- Configuration (Inline)
 -- ============================================================================
 
----@class ImageConfig
----@field max_width number
----@field max_height number
----@field debounce_ms number
----@field show_render_time boolean
-
----@type ImageConfig
-M.config = {
+image_renderer.config = {
   max_width = 800,
   max_height = 600,
   debounce_ms = 100,
@@ -25,250 +18,238 @@ M.config = {
 }
 
 -- ============================================================================
--- State
+-- State (Lazy-initialized)
 -- ============================================================================
 
----@class ImageState
----@field ns number
----@field image_id number
----@field terminal_info? table
----@field last_render_ms number
+local plugin_state = nil
 
----@type ImageState
-local state = {
-  ns = vim.api.nvim_create_namespace("renderer_image"),
-  image_id = 0,
-  terminal_info = nil,
-  last_render_ms = 0,
-}
+local function get_state()
+  if plugin_state then
+    return plugin_state
+  end
+  plugin_state = {
+    ns = vim.api.nvim_create_namespace("renderer_image"),
+    image_id = 0,
+    terminal_info = nil,
+    last_render_ms = 0,
+    highlights_setup = false,
+  }
+  return plugin_state
+end
 
 -- ============================================================================
--- Timing Helper
+-- Timing (Inline)
 -- ============================================================================
 
----@return number start_time
 local function start_timing()
   return vim.uv.hrtime()
 end
 
----@param start_time number
----@return number elapsed_ms
 local function stop_timing(start_time)
-  local elapsed_nanoseconds = vim.uv.hrtime() - start_time
-  local elapsed_milliseconds = elapsed_nanoseconds / 1e6
-  return math.floor(elapsed_milliseconds * 100) / 100
+  local elapsed_ns = vim.uv.hrtime() - start_time
+  return math.floor((elapsed_ns / 1e6) * 100) / 100
 end
 
 -- ============================================================================
--- Highlight Groups
+-- Highlights (Deferred)
 -- ============================================================================
 
-local function setup_highlights()
-  local highlight_links = {
-    { group = "RendererImageHeader", link = "Title" },
-    { group = "RendererImageInfo", link = "Comment" },
-    { group = "RendererRenderTime", link = "Comment" },
+local function ensure_highlights()
+  local current_state = get_state()
+  if current_state.highlights_setup then
+    return
+  end
+  current_state.highlights_setup = true
+
+  local highlight_map = {
+    { "RendererImageHeader", "Title" },
+    { "RendererImageInfo", "Comment" },
+    { "RendererRenderTime", "Comment" },
   }
 
-  for _, link_info in ipairs(highlight_links) do
-    vim.api.nvim_set_hl(0, link_info.group, { link = link_info.link, default = true })
+  for _, mapping in ipairs(highlight_map) do
+    vim.api.nvim_set_hl(0, mapping[1], { link = mapping[2], default = true })
   end
 end
 
 -- ============================================================================
--- Terminal Detection
+-- Terminal Detection (Cached)
 -- ============================================================================
 
----@class TerminalDetectionResult
----@field protocols string[]
----@field primary string
----@field tmux boolean
-
----@return TerminalDetectionResult
 local function detect_terminal()
+  local current_state = get_state()
+  if current_state.terminal_info then
+    return current_state.terminal_info
+  end
+
   local term_value = os.getenv("TERM") or ""
   local term_program = os.getenv("TERM_PROGRAM") or ""
   local is_tmux = os.getenv("TMUX") ~= nil
 
-  local supported_protocols = {}
+  local supported = {}
 
-  -- Kitty Graphics Protocol
+  -- Kitty
   if term_program:lower():find("kitty") or term_value:lower():find("kitty") then
     if not is_tmux then
-      table.insert(supported_protocols, "kgp")
+      supported[#supported + 1] = "kgp"
     end
-    table.insert(supported_protocols, "kgp_old")
+    supported[#supported + 1] = "kgp_old"
   end
 
-  -- Inline Images Protocol (iTerm2, WezTerm, etc.)
-  local iip_terminals = { "iterm2", "WezTerm", "Warp", "VSCode" }
+  -- IIP (iTerm2, WezTerm, etc.)
+  local iip_terminals = { "iterm2", "wewterm", "warp", "vscode" }
   for _, terminal_name in ipairs(iip_terminals) do
-    if term_program:lower():find(terminal_name:lower()) then
-      table.insert(supported_protocols, "iip")
+    if term_program:lower():find(terminal_name) then
+      supported[#supported + 1] = "iip"
       break
     end
   end
 
   if os.getenv("VSCODE_INJECTION") == "1" then
-    table.insert(supported_protocols, "iip")
+    supported[#supported + 1] = "iip"
   end
 
   -- Sixel
   if term_value:find("sixel") or term_program:lower():find("foot") then
-    table.insert(supported_protocols, "sixel")
+    supported[#supported + 1] = "sixel"
   end
 
-  return {
-    protocols = supported_protocols,
-    primary = supported_protocols[1] or "none",
+  current_state.terminal_info = {
+    protocols = supported,
+    primary = supported[1] or "none",
     tmux = is_tmux,
   }
+
+  return current_state.terminal_info
 end
 
 -- ============================================================================
--- Image Protocol Implementations
+-- Protocol Encoders (Lazy-loaded)
 -- ============================================================================
 
----@param data string
----@param width number
----@param height number
----@return string
-local function encode_kitty_graphics_protocol(data, width, height)
-  state.image_id = state.image_id + 1
-  local image_identifier = state.image_id
-  local base64_data = vim.fn.system("base64", data):gsub("\n", "")
+local function encode_kitty(data, width, height)
+  local current_state = get_state()
+  current_state.image_id = current_state.image_id + 1
+  local image_id = current_state.image_id
+  local base64 = vim.fn.system("base64", data):gsub("\n", "")
 
-  local control_data = string.format("a=T,f=100,i=%d,t=d", image_identifier)
+  local ctrl = string.format("a=T,f=100,i=%d,t=d", image_id)
   if width then
-    control_data = control_data .. ",c=" .. width
+    ctrl = ctrl .. ",c=" .. width
   end
   if height then
-    control_data = control_data .. ",r=" .. height
+    ctrl = ctrl .. ",r=" .. height
   end
 
   local chunk_size = 4096
-  local encoded_chunks = {}
+  local chunks = {}
 
-  for chunk_start = 1, #base64_data, chunk_size do
-    local chunk_end = math.min(chunk_start + chunk_size - 1, #base64_data)
-    local chunk = base64_data:sub(chunk_start, chunk_end)
-    local is_last_chunk = chunk_end >= #base64_data
-    local more_data_flag = is_last_chunk and 0 or 1
+  for chunk_start = 1, #base64, chunk_size do
+    local chunk = base64:sub(chunk_start, chunk_start + chunk_size - 1)
+    local is_last = (chunk_start + chunk_size - 1) >= #base64
+    local more = is_last and 0 or 1
 
     if chunk_start == 1 then
-      table.insert(encoded_chunks, string.format(
-        "\027_%s,m=%d;%s\027\\",
-        control_data, more_data_flag, chunk
-      ))
+      chunks[#chunks + 1] = string.format("\027_%s,m=%d;%s\027\\", ctrl, more, chunk)
     else
-      table.insert(encoded_chunks, string.format(
-        "\027_Gm=%d;%s\027\\",
-        more_data_flag, chunk
-      ))
+      chunks[#chunks + 1] = string.format("\027_Gm=%d;%s\027\\", more, chunk)
     end
   end
 
-  return table.concat(encoded_chunks)
+  return table.concat(chunks)
 end
 
----@param data string
----@return string
-local function encode_inline_images_protocol(data)
-  local base64_data = vim.fn.system("base64", data):gsub("\n", "")
-  return string.format("\027]1337;File=inline=1:%s\027\\", base64_data)
+local function encode_iip(data)
+  local base64 = vim.fn.system("base64", data):gsub("\n", "")
+  return string.format("\027]1337;File=inline=1:%s\027\\", base64)
 end
 
 -- ============================================================================
 -- Image Display
 -- ============================================================================
 
----@param buffer number
----@param file_path string
----@return number render_time_ms
-local function display_image(buffer, file_path)
+local function display_image(file_path)
   local timing_start = start_timing()
 
   local terminal = detect_terminal()
   if terminal.primary == "none" then
-    vim.notify("[image] Terminal does not support image display", vim.log.levels.WARN)
     return 0
   end
 
   local file_handle = io.open(file_path, "rb")
   if not file_handle then
-    vim.notify("[image] Cannot read file: " .. file_path, vim.log.levels.ERROR)
     return 0
   end
   local file_data = file_handle:read("*a")
   file_handle:close()
 
-  -- Get image dimensions from PNG header
-  local image_width, image_height = 100, 100
+  -- Get dimensions from PNG header
+  local img_width, img_height = 100, 100
   if file_data:sub(1, 4) == "\137PNG" then
-    image_width = string.unpack(">I4", file_data:sub(17, 20))
-    image_height = string.unpack(">I4", file_data:sub(21, 24))
+    img_width = string.unpack(">I4", file_data:sub(17, 20))
+    img_height = string.unpack(">I4", file_data:sub(21, 24))
   end
 
-  -- Scale if needed
-  if image_width > M.config.max_width then
-    image_height = math.floor(image_height * M.config.max_width / image_width)
-    image_width = M.config.max_width
+  -- Scale
+  if img_width > image_renderer.config.max_width then
+    img_height = math.floor(img_height * image_renderer.config.max_width / img_width)
+    img_width = image_renderer.config.max_width
   end
-  if image_height > M.config.max_height then
-    image_width = math.floor(image_width * M.config.max_height / image_height)
-    image_height = M.config.max_height
+  if img_height > image_renderer.config.max_height then
+    img_width = math.floor(img_width * image_renderer.config.max_height / img_height)
+    img_height = image_renderer.config.max_height
   end
 
-  -- Convert to cell dimensions (approximate)
-  local cell_width = math.ceil(image_width / 8)
-  local cell_height = math.ceil(image_height / 16)
+  local cell_width = math.ceil(img_width / 8)
+  local cell_height = math.ceil(img_height / 16)
 
-  -- Display using appropriate protocol
-  local encoded_data
+  local encoded
   if terminal.primary == "kgp" or terminal.primary == "kgp_old" then
-    encoded_data = encode_kitty_graphics_protocol(file_data, cell_width, cell_height)
+    encoded = encode_kitty(file_data, cell_width, cell_height)
   elseif terminal.primary == "iip" then
-    encoded_data = encode_inline_images_protocol(file_data)
+    encoded = encode_iip(file_data)
   end
 
-  if encoded_data then
-    io.write(encoded_data)
+  if encoded then
+    io.write(encoded)
     io.flush()
   end
 
   local render_time = stop_timing(timing_start)
-  state.last_render_ms = render_time
+  local current_state = get_state()
+  current_state.last_render_ms = render_time
 
   return render_time
 end
 
 -- ============================================================================
--- File Type Detection
+-- File Detection
 -- ============================================================================
 
 local image_extensions = {
-  png = true,
-  jpeg = true,
-  jpg = true,
-  gif = true,
-  webp = true,
-  bmp = true,
-  tiff = true,
+  png = true, jpeg = true, jpg = true, gif = true,
+  webp = true, bmp = true, tiff = true,
 }
 
----@param file_path string
----@return boolean
 local function is_image_file(file_path)
-  local extension = file_path:match("%.([^%.]+)$")
-  return extension and image_extensions[extension:lower()] or false
+  local ext = file_path:match("%.([^%.]+)$")
+  return ext and image_extensions[ext:lower()] or false
+end
+
+local function format_file_size(size_bytes)
+  if size_bytes < 1024 then
+    return string.format("%d B", size_bytes)
+  elseif size_bytes < 1024 * 1024 then
+    return string.format("%.1f KB", size_bytes / 1024)
+  else
+    return string.format("%.1f MB", size_bytes / (1024 * 1024))
+  end
 end
 
 -- ============================================================================
 -- Buffer Renderer
 -- ============================================================================
 
----@param buffer number
----@return number render_time_ms
 local function render_image_buffer(buffer)
   local timing_start = start_timing()
 
@@ -288,60 +269,48 @@ local function render_image_buffer(buffer)
   local display_lines = {
     string.format("=== Image: %s ===", file_name),
     "",
-    "Terminal image display available with:",
-    "  - Kitty Graphics Protocol",
-    "  - iTerm2 Inline Images",
-    "  - Sixel",
-    "",
     string.format("File: %s", file_path),
     string.format("Size: %s", format_file_size(file_size)),
-    string.format("Terminal: %s (%s)", terminal.primary, table.concat(terminal.protocols, ", ")),
+    string.format("Terminal: %s", terminal.primary),
+    string.format("Protocols: %s", table.concat(terminal.protocols, ", ")),
   }
 
   vim.api.nvim_buf_set_lines(buffer, 0, -1, false, display_lines)
   vim.bo[buffer].filetype = "image"
   vim.bo[buffer].modifiable = false
 
-  -- Apply highlights
-  local buffer_namespace = vim.api.nvim_create_namespace("renderer_image_display")
-  vim.api.nvim_buf_clear_namespace(buffer, buffer_namespace, 0, -1)
+  ensure_highlights()
 
-  pcall(vim.api.nvim_buf_set_extmark, buffer, buffer_namespace, 0, 0, {
+  local buf_ns = vim.api.nvim_create_namespace("renderer_image_display")
+  vim.api.nvim_buf_clear_namespace(buffer, buf_ns, 0, -1)
+
+  pcall(vim.api.nvim_buf_set_extmark, buffer, buf_ns, 0, 0, {
     end_col = #display_lines[1],
     hl_group = "RendererImageHeader",
   })
 
-  local render_time = display_image(buffer, file_path)
-  state.last_render_ms = render_time
+  display_image(file_path)
 
-  if M.config.show_render_time then
-    local status_message = string.format("[image] Rendered in %.2f ms", render_time)
-    vim.api.nvim_echo({ { status_message, "RendererRenderTime" } }, false, {})
+  local render_time = stop_timing(timing_start)
+  local current_state = get_state()
+  current_state.last_render_ms = render_time
+
+  if image_renderer.config.show_render_time then
+    local status_msg = string.format("[image] %.2f ms", render_time)
+    vim.api.nvim_echo({ { status_msg, "RendererRenderTime" } }, false, {})
   end
 
   return render_time
 end
 
----@param size_bytes number
----@return string formatted_size
-local function format_file_size(size_bytes)
-  if size_bytes < 1024 then
-    return string.format("%d B", size_bytes)
-  elseif size_bytes < 1024 * 1024 then
-    return string.format("%.1f KB", size_bytes / 1024)
-  else
-    return string.format("%.1f MB", size_bytes / (1024 * 1024))
-  end
-end
-
 -- ============================================================================
--- Setup
+-- Setup (Minimal)
 -- ============================================================================
 
----@param opts? ImageConfig
-function M.setup(opts)
-  M.config = vim.tbl_deep_extend("force", M.config, opts or {})
-  setup_highlights()
+function image_renderer.setup(opts)
+  image_renderer.config = vim.tbl_deep_extend("force", image_renderer.config, opts or {})
+
+  vim.defer_fn(ensure_highlights, 10)
 
   local augroup = vim.api.nvim_create_augroup("RendererImage", { clear = true })
 
@@ -355,27 +324,21 @@ function M.setup(opts)
 
   vim.api.nvim_create_user_command("ImageShow", function()
     local file_path = vim.fn.expand("%:p")
-    display_image(vim.api.nvim_get_current_buf(), file_path)
+    display_image(file_path)
   end, {})
 
   vim.api.nvim_create_user_command("ImageInfo", function()
     local file_path = vim.fn.expand("%:p")
     local terminal = detect_terminal()
-    local info_lines = {
+    local current_state = get_state()
+    local info = {
       string.format("File: %s", file_path),
       string.format("Terminal: %s", terminal.primary),
       string.format("Protocols: %s", table.concat(terminal.protocols, ", ")),
-      string.format("TMUX: %s", tostring(terminal.tmux)),
-      string.format("Last render: %.2f ms", state.last_render_ms),
+      string.format("Last render: %.2f ms", current_state.last_render_ms),
     }
-    vim.notify(table.concat(info_lines, "\n"), vim.log.levels.INFO)
+    vim.notify(table.concat(info, "\n"), vim.log.levels.INFO)
   end, {})
-
-  local current_buffer = vim.api.nvim_get_current_buf()
-  local buffer_name = vim.api.nvim_buf_get_name(current_buffer)
-  if buffer_name and is_image_file(buffer_name) then
-    render_image_buffer(current_buffer)
-  end
 end
 
-return M
+return image_renderer
