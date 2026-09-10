@@ -52,6 +52,40 @@ test-filetype:
 test-discovery:
     nvim --headless -u NONE --cmd "set rtp+={{root_dir}}" -c "luafile lua/tests/e2e/plugin_discovery_test.lua" 2>&1 | grep -E "^\s+[✓✗]|passed|failed|Total"
 
+test-lazyvim:
+    #!/usr/bin/env bash
+    set -e
+    echo "Testing lazy.nvim plugin discovery..."
+    echo ""
+    nvim --headless -u NONE --cmd "set rtp+={{root_dir}}" -c "lua << EOF
+    local passed = 0
+    local failed = 0
+    local plugins = {'renderer-markdown', 'renderer-ipynb', 'renderer-image'}
+    for _, name in ipairs(plugins) do
+      local ok, plugin = pcall(require, name)
+      if ok and plugin.setup then
+        pcall(plugin.setup, { preview = { auto_open = false } })
+        print('  ✓ ' .. name .. ' loaded')
+        passed = passed + 1
+      else
+        print('  ✗ ' .. name .. ' failed')
+        failed = failed + 1
+      end
+    end
+    local cmds = {'MarkdownPreview','IpynbRender','ImageShow'}
+    for _, cmd in ipairs(cmds) do
+      if vim.api.nvim_get_commands({})[cmd] then
+        print('  ✓ Command ' .. cmd)
+        passed = passed + 1
+      else
+        print('  ✗ Command ' .. cmd)
+        failed = failed + 1
+      end
+    end
+    print(passed .. ' passed, ' .. failed .. ' failed')
+    vim.cmd(failed > 0 and 'cquit 1' or 'qa!')
+    EOF" 2>&1 | grep -v "^$"
+
 # Format code
 format:
     @echo "Formatting Lua..."
