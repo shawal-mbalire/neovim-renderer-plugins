@@ -1,241 +1,156 @@
 # Neovim Renderer Plugins
 
-Serverless Markdown, ipynb, and Image renderer plugins for Neovim using Bun.
+Three serverless plugins for rendering Markdown, ipynb, and Images in Neovim.
 
-## Features
+## Structure
 
-### Markdown (GitHub Feature Parity)
-- **GFM Extensions**: Tables, task lists, strikethrough, autolinks
-- **GitHub Alerts**: NOTE, TIP, IMPORTANT, WARNING, CAUTION
-- **Math**: LaTeX equations ($...$ and $$...$$)
-- **Mermaid**: Diagram rendering via mmdc
-- **Emoji**: :rocket: → 🚀
-- **Color Models**: #RRGGBB, rgb(), hsl()
-- **HTML Extensions**: <sub>, <sup>, <u>, <mark>, <kbd>
-- **Footnotes**: [^1] references
-- **Side-by-side Preview**: Auto-updating split view
-
-### ipynb (VSCode Feature Parity)
-- **All Output Types**: Text, HTML, images, JSON, LaTeX, errors
-- **Stream Output**: stdout/stderr
-- **Rich Outputs**: PNG, JPEG, SVG, GIF
-- **Error Tracebacks**: ANSI-stripped, formatted
-- **Cell Numbers**: Execution count display
-
-### Image (yazi-like Support)
-- **Kitty Graphics Protocol**: Unicode placeholders
-- **Inline Images Protocol**: iTerm2/WezTerm
-- **Sixel**: foot, Windows Terminal
-- **Fallback**: Placeholder for unsupported terminals
-
-## Requirements
-
-- [Neovim](https://neovim.io/) 0.8+
-- [Bun](https://bun.sh/) 1.0+
-- [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) (optional) for Mermaid diagrams
+```
+├── lua/                          # Lua plugins (pure Neovim)
+│   ├── renderer-markdown/        # Markdown with side-by-side preview
+│   ├── renderer-ipynb/           # Jupyter notebook rendering
+│   └── renderer-image/           # Terminal image display
+│
+├── typescript/                   # TypeScript (hexagonal architecture)
+│   ├── domain/                   # Business logic
+│   │   ├── shared/              # Common types, ports
+│   │   ├── markdown/            # Markdown domain
+│   │   ├── ipynb/               # Notebook domain
+│   │   └── image/               # Image domain
+│   ├── adapters/                # Implementations
+│   │   ├── markdown/
+│   │   ├── ipynb/
+│   │   └── image/
+│   ├── infra/                   # Config, logging
+│   └── deployment/              # Build configs for separate plugins
+│       ├── markdown/
+│       ├── ipynb/
+│       └── image/
+│
+└── tests/                       # Test fixtures and tests
+```
 
 ## Installation
 
 ### lazy.nvim
 
 ```lua
+-- All three plugins
 {
-  "yourusername/neovim-renderer-plugins",
-  ft = { "markdown", "ipynb", "html" },
-  dependencies = {
-    "bun-sh/bun.nvim",  -- Optional: if using bun integration
-  },
+  "shawal-mbalire/neovim-renderer-plugins",
+  ft = { "markdown", "ipynb", "png", "jpg" },
   config = function()
-    require("renderer").setup({
-      -- Preview settings
-      preview = {
-        enabled = true,
-        position = "right",  -- "right" or "bottom"
-        width = 50,          -- For right split (percentage)
-        height = 15,         -- For bottom split (lines)
-        sync_scroll = true,
-        auto_open = true,
-      },
-      -- Other settings
-      debounce_ms = 100,
-      kitty = true,
-      mermaid = true,
-    })
+    require("renderer-markdown").setup()
+    require("renderer-ipynb").setup()
+    require("renderer-image").setup()
   end,
 }
+
+-- Or install separately:
+-- Markdown only
+{ "shawal-mbalire/neovim-renderer-plugins", ft = "markdown", config = function() require("renderer-markdown").setup() end }
+
+-- ipynb only
+{ "shawal-mbalire/neovim-renderer-plugins", ft = "ipynb", config = function() require("renderer-ipynb").setup() end }
+
+-- Image only
+{ "shawal-mbalire/neovim-renderer-plugins", ft = { "png", "jpg", "gif" }, config = function() require("renderer-image").setup() end }
 ```
 
 ### plug.nvim
 
 ```vim
-Plug 'yourusername/neovim-renderer-plugins'
+Plug 'shawal-mbalire/neovim-renderer-plugins'
 
-" In init.lua or after plugin load:
+" Then in init.lua:
 lua << EOF
-require("renderer").setup({
+require("renderer-markdown").setup()
+require("renderer-ipynb").setup()
+require("renderer-image").setup()
+EOF
+```
+
+## Features
+
+### Markdown (GitHub Parison)
+- GFM tables, task lists, strikethrough
+- Alerts (NOTE, TIP, IMPORTANT, WARNING, CAUTION)
+- Math ($...$ and $$...$$)
+- Side-by-side preview with scroll sync
+- Built-in extmarks for styling
+
+### ipynb (VSCode Parity)
+- All output types (text, HTML, images, errors)
+- Stream output (stdout/stderr)
+- Error tracebacks
+- Cell execution counts
+
+### Image (yazi-like)
+- Kitty Graphics Protocol
+- Inline Images Protocol (iTerm2/WezTerm)
+- Sixel support
+- Auto-detect terminal
+
+## Built-in Neovim Features Used
+
+- **Extmarks** - Non-destructive highlighting
+- **Autocmds** - Auto-render on file changes
+- **Splits** - Side-by-side preview
+- **Virtual text** - Decorations without buffer modification
+- **JSON decode** - Parse ipynb files
+- **Base64** - Image encoding for protocols
+- **Jobstart** - Background process communication
+
+## Commands
+
+### Markdown
+- `:MarkdownPreview` - Open preview split
+- `:MarkdownPreviewClose` - Close preview
+- `:MarkdownPreviewToggle` - Toggle preview
+
+### ipynb
+- `:IpynbRender` - Re-render notebook
+- `:IpynbEdit` - Switch to edit mode
+
+### Image
+- `:ImageShow` - Display image
+- `:ImageInfo` - Show terminal capabilities
+
+## Configuration
+
+```lua
+require("renderer-markdown").setup({
   preview = {
     enabled = true,
-    position = "right",
+    position = "right",  -- "right" or "bottom"
     width = 50,
     sync_scroll = true,
     auto_open = true,
   },
   debounce_ms = 100,
-  kitty = true,
-  mermaid = true,
 })
-EOF
-```
 
-### With Dependencies
-
-```lua
--- lazy.nvim with all dependencies
-{
-  "yourusername/neovim-renderer-plugins",
-  ft = { "markdown", "ipynb", "html" },
-  dependencies = {
-    { "nvim-lua/plenary.nvim" },
-  },
-  build = function()
-    -- Install Bun dependencies
-    vim.fn.system("cd " .. vim.fn.stdpath("data") .. "/lazy/neovim-renderer-plugins && bun install")
-  end,
-  config = function()
-    require("renderer").setup()
-  end,
-}
-```
-
-## Usage
-
-### Markdown Preview
-
-Open a markdown file - preview opens automatically in a split:
-
-```bash
-nvim README.md
-```
-
-**Commands:**
-- `:RendererPreviewOpen` - Open preview split
-- `:RendererPreviewClose` - Close preview split
-- `:RendererPreviewToggle` - Toggle preview
-- `:RendererRefresh` - Force refresh
-
-### ipynb Files
-
-Open Jupyter notebooks directly:
-
-```bash
-nvim notebook.ipynb
-```
-
-The notebook renders directly in the buffer with:
-- Cell headers with execution counts
-- Syntax-highlighted code
-- Rendered outputs (text, images, errors)
-
-### Images
-
-View images in supported terminals (Kitty, WezTerm, iTerm2):
-
-```bash
-nvim image.png
-```
-
-## Configuration
-
-```lua
-require("renderer").setup({
-  -- General
-  enabled = true,
+require("renderer-ipynb").setup({
+  show_execution_count = true,
+  max_output_lines = 100,
   debounce_ms = 100,
+})
 
-  -- Preview (Markdown)
-  preview = {
-    enabled = true,
-    position = "right",  -- "right" or "bottom"
-    width = 50,          -- Percentage for right split
-    height = 15,         -- Lines for bottom split
-    sync_scroll = true,
-    auto_open = true,
-  },
-
-  -- Terminal
-  kitty = true,          -- Enable Kitty graphics
-  mermaid = true,        -- Enable Mermaid rendering
-
-  -- Paths
-  bun_path = "bun",
-  renderer_script = nil, -- Auto-detect
+require("renderer-image").setup({
+  max_width = 800,
+  max_height = 600,
 })
 ```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Neovim (Lua)                           │
-│  - Buffer management, autocmds, extmarks                    │
-│  - Split view for markdown preview                          │
-│  - Spawns Bun process via vim.fn.jobstart()                 │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ stdio (JSON)
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Bun Engine (TypeScript)                   │
-│  ├── shared/       Common types, ports, config              │
-│  ├── plugins/                                            │
-│  │   ├── markdown/  GFM parser, GitHub extensions          │
-│  │   ├── ipynb/     Jupyter notebook parser                │
-│  │   └── image/     Kitty/IIP/Sixel protocols              │
-│  └── src/          Composition root                        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-Each plugin follows **hexagonal architecture**:
-- **Domain**: Models, ports, workflows (zero dependencies)
-- **Adapters**: Parser, renderer implementations
-- **Infrastructure**: Config, logging
-
-## Keyboard Shortcuts
-
-Add these to your config for quick access:
-
-```lua
-vim.keymap.set("n", "<leader>mp", "<cmd>RendererPreviewToggle<cr>", { desc = "Toggle Markdown Preview" })
-vim.keymap.set("n", "<leader>mr", "<cmd>RendererRefresh<cr>", { desc = "Refresh Renderer" })
-vim.keymap.set("n", "<leader>ms", "<cmd>RendererStatus<cr>", { desc = "Renderer Status" })
-```
-
-## Supported Terminals for Images
-
-| Terminal | Protocol | Support |
-|----------|----------|---------|
-| Kitty | Kitty Graphics | ✅ |
-| WezTerm | IIP | ✅ |
-| iTerm2 | IIP | ✅ |
-| Ghostty | Kitty Graphics | ✅ |
-| foot | Sixel | ✅ |
-| Windows Terminal | Sixel | ✅ |
-| VSCode | IIP | ✅ |
 
 ## Development
 
 ```bash
-# Clone
-git clone https://github.com/yourusername/neovim-renderer-plugins
-cd neovim-renderer-plugins
-
-# Install dependencies
-bun install
-
 # Run tests
 bun test
 
-# Build
-bun run build
+# Build separate plugins
+cd typescript/deployment/markdown && bun run build
+cd typescript/deployment/ipynb && bun run build
+cd typescript/deployment/image && bun run build
 ```
 
 ## License
