@@ -100,8 +100,11 @@ function image_renderer_adapter.render(file_path)
 	-- Get dimensions from PNG header
 	local img_width, img_height = 100, 100
 	if file_data:sub(1, 4) == "\137PNG" then
-		img_width = string.unpack(">I4", file_data:sub(17, 20))
-		img_height = string.unpack(">I4", file_data:sub(21, 24))
+		-- Parse PNG header (Lua 5.1 compatible)
+		local b1, b2, b3, b4 = string.byte(file_data, 17, 20)
+		img_width = b1 * 16777216 + b2 * 65536 + b3 * 256 + b4
+		b1, b2, b3, b4 = string.byte(file_data, 21, 24)
+		img_height = b1 * 16777216 + b2 * 65536 + b3 * 256 + b4
 	end
 
 	-- Scale

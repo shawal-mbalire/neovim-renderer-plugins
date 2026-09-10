@@ -1,0 +1,29 @@
+[vim]
+any = true
+
+[vim.api]
+any = true
+
+[vim.fn]
+any = true
+
+[vim.bo]
+any = true
+
+[vim.wo]
+any = true
+
+[vim.g]
+any = true
+
+[vim.o]
+any = true
+
+[vim.env]
+any = true
+
+[vim.loop]
+any = true
+
+[vim.uv]
+any = true

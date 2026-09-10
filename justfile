@@ -57,9 +57,12 @@ format:
 
 # Lint code
 lint:
-    @echo "Linting TypeScript..."
-    @cd typescript && bun install --frozen-lockfile 2>/dev/null && bunx tsc --noEmit 2>/dev/null && echo "  TypeScript: OK" || echo "  TypeScript: errors found"
-    @echo "Done."
+	@echo "Linting Lua..."
+	@cd lua && selene . 2>&1 | grep -E "^[a-z]|Results:" || echo "  Lua: OK"
+	@echo ""
+	@echo "Linting TypeScript..."
+	@cd typescript && bun install --frozen-lockfile 2>/dev/null && bunx tsc --noEmit 2>&1 | grep -E "error TS|Done" || echo "  TypeScript: OK"
+	@echo "Done."
 
 # Clean build artifacts
 clean:

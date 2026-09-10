@@ -89,13 +89,10 @@ local function run_tests()
 		return table.concat(vim.api.nvim_buf_get_lines(buffer, 0, -1, false), "\n")
 	end
 
-	local function cleanup(buffer, temp_dir)
+	local function cleanup(buffer)
 		pcall(function()
 			vim.api.nvim_buf_delete(buffer, { force = true })
 		end)
-		if temp_dir then
-			vim.fn.delete(temp_dir, "rf")
-		end
 	end
 
 	-- Test: Markdown cells
@@ -112,7 +109,7 @@ local function run_tests()
 		assert(content:find("Jupyter Notebook"), "Should contain notebook header")
 		assert(content:find("Cell 1"), "Should contain cell header")
 		assert(content:find("# Title"), "Should contain markdown content")
-		cleanup(buffer, temp_dir)
+		cleanup(buffer)
 	end)
 
 	-- Test: Code cells with stream output
@@ -138,7 +135,7 @@ local function run_tests()
 		assert(content:find("print"), "Should contain code")
 		assert(content:find("Output"), "Should contain output header")
 		assert(content:find("hello"), "Should contain output text")
-		cleanup(buffer, temp_dir)
+		cleanup(buffer)
 	end)
 
 	-- Test: Code cells with execute_result
@@ -164,7 +161,7 @@ local function run_tests()
 
 		local content = get_content(buffer)
 		assert(content:find("42"), "Should contain result")
-		cleanup(buffer, temp_dir)
+		cleanup(buffer)
 	end)
 
 	-- Test: Code cells with error output
@@ -189,7 +186,7 @@ local function run_tests()
 		local content = get_content(buffer)
 		assert(content:find("ZeroDivisionError"), "Should contain error name")
 		assert(content:find("division by zero"), "Should contain error message")
-		cleanup(buffer, temp_dir)
+		cleanup(buffer)
 	end)
 
 	-- Test: Multiple cells
@@ -232,7 +229,7 @@ local function run_tests()
 		assert(content:find("Data Analysis"), "Should contain markdown content")
 		assert(content:find("pandas"), "Should contain import statement")
 		assert(content:find("df.head"), "Should contain second code")
-		cleanup(buffer, temp_dir)
+		cleanup(buffer)
 	end)
 
 	-- Test: Execution count display
@@ -249,7 +246,7 @@ local function run_tests()
 
 		local content = get_content(buffer)
 		assert(content:find("[5]"), "Should contain execution count")
-		cleanup(buffer, temp_dir)
+		cleanup(buffer)
 	end)
 
 	-- Test: Image output
@@ -274,7 +271,7 @@ local function run_tests()
 
 		local content = get_content(buffer)
 		assert(content:find("Image"), "Should contain image placeholder")
-		cleanup(buffer, temp_dir)
+		cleanup(buffer)
 	end)
 
 	-- Print results with timing
