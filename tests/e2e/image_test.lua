@@ -1,22 +1,38 @@
 ---
 --- E2E Test: Image Renderer
 --- Runs in headless Neovim to verify plugin works
+--- Includes timing measurements for all operations
 ---
 
+local function start_timing()
+  return vim.uv.hrtime()
+end
+
+local function stop_timing(start_time)
+  local elapsed_ns = vim.uv.hrtime() - start_time
+  return math.floor((elapsed_ns / 1e6) * 100) / 100
+end
+
 local function run_tests()
+  local total_start = start_timing()
   local passed = 0
   local failed = 0
   local test_results = {}
+  local timings = {}
 
   local function test(name, test_function)
+    local test_start = start_timing()
     local success, error = pcall(test_function)
+    local test_time = stop_timing(test_start)
+
     if success then
       passed = passed + 1
-      table.insert(test_results, string.format("  ✓ %s", name))
+      table.insert(test_results, string.format("  ✓ %s (%.2f ms)", name, test_time))
     else
       failed = failed + 1
-      table.insert(test_results, string.format("  ✗ %s: %s", name, tostring(error)))
+      table.insert(test_results, string.format("  ✗ %s: %s (%.2f ms)", name, tostring(error), test_time))
     end
+    timings[name] = test_time
   end
 
   -- Test 1: Plugin loads without error
@@ -121,12 +137,30 @@ local function run_tests()
     end
   end)
 
-  -- Print results
+  -- Print results with timing
+  local total_time = stop_timing(total_start)
+
   print("\n=== Image E2E Tests ===")
   for _, result in ipairs(test_results) do
     print(result)
   end
-  print(string.format("\n%d passed, %d failed\n", passed, failed))
+  print(string.format("\n%d passed, %d failed", passed, failed))
+  print(string.format("Total time: %.2f ms", total_time))
+
+  -- Print slowest tests
+  local sorted_timings = {}
+  for name, time in pairs(timings) do
+    table.insert(sorted_timings, { name = name, time = time })
+  end
+  table.sort(sorted_timings, function(a, b) return a.time > b.time end)
+
+  if #sorted_timings > 0 then
+    print("\nSlowest tests:")
+    for i = 1, math.min(3, #sorted_timings) do
+      print(string.format("  %d. %s: %.2f ms", i, sorted_timings[i].name, sorted_timings[i].time))
+    end
+  end
+  print("")
 
   return failed == 0
 end

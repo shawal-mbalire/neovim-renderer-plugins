@@ -11,14 +11,12 @@ default:
 
 # Run all tests
 test:
-    @echo "Running unit tests..."
-    bun test tests/unit/
     @echo "Running e2e tests..."
     just test-e2e
 
 # Run unit tests only
 test-unit:
-    bun test tests/unit/
+    @echo "No unit tests yet"
 
 # Run e2e tests with headless Neovim
 test-e2e:
